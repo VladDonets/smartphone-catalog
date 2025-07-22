@@ -161,4 +161,71 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
 
+      // Застосувати фільтри
+  document.getElementById('applyFilters').addEventListener('click', function () {
+    const url = new URL(window.location);
+
+    // Текстові фільтри
+    const selectFilters = [
+      'brand', 'os', 'screen_type', 'refresh_rate', 'ram', 'rom',
+      'video_recording', 'wifi_version', 'bluetooth_version', 'sim_type',
+      'sim_count', 'fingerprint_sensor', 'body_material', 'ip_protection', 'color'
+    ];
+
+    selectFilters.forEach(key => {
+      const element = document.getElementById(`${key}Filter`);
+      if (element) {
+        const value = element.value;
+        if (value) {
+          url.searchParams.set(key, value);
+        } else {
+          url.searchParams.delete(key);
+        }
+      }
+    });
+
+    // Чекбокси
+    const checkboxFilters = [
+      'microsd_support', 'optical_stabilization', 'wireless_charge', 'reverse_charge',
+      'support_5g', 'gps', 'nfc', 'ir_port', 'volte_support', 'face_unlock'
+    ];
+
+    checkboxFilters.forEach(key => {
+      const checkbox = document.getElementById(`${key}Filter`);
+      if (checkbox) {
+        if (checkbox.checked) {
+          url.searchParams.set(key, 'on');
+        } else {
+          url.searchParams.delete(key);
+        }
+      }
+    });
+
+    // Застосування фільтрів
+    window.location.href = url.toString();
+  });
+
+  // Очистити фільтри
+  document.getElementById('clearFilters').addEventListener('click', function () {
+    const url = new URL(window.location);
+
+    // Видаляємо всі параметри фільтрів
+    const keys = [
+      'brand', 'os', 'screen_type', 'refresh_rate', 'ram', 'rom',
+      'video_recording', 'wifi_version', 'bluetooth_version', 'sim_type',
+      'sim_count', 'fingerprint_sensor', 'body_material', 'ip_protection', 'color',
+      'microsd_support', 'optical_stabilization', 'wireless_charge', 'reverse_charge',
+      'support_5g', 'gps', 'nfc', 'ir_port', 'volte_support', 'face_unlock'
+    ];
+
+    keys.forEach(key => url.searchParams.delete(key));
+
+    // Також видаляємо пошук, якщо потрібно
+    url.searchParams.delete('q');
+
+    // Переходимо без фільтрів
+    window.location.href = url.toString();
+  });
+
+
 });

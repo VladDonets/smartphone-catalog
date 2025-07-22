@@ -35,11 +35,45 @@
   <!-- Пошук -->
   <div class="row mb-4">
     <div class="col-md-8">
-      <form method="get" action="/" class="d-flex">
+      <form method="get" action="/" class="d-flex" id="searchForm">
         <input type="text" class="form-control me-2" name="q" placeholder="Пошук смартфонів..." value="{{ request.args.get('q', '') }}">
         <button class="btn btn-primary" type="submit">🔍 Пошук</button>
         <input type="hidden" name="sort" value="{{ request.args.get('sort', '') }}">
+        <!-- Додаємо приховані поля для фільтрів -->
+        <input type="hidden" name="brand" id="hiddenBrand" value="{{ request.args.get('brand', '') }}">
+        <input type="hidden" name="os" id="hiddenOs" value="{{ request.args.get('os', '') }}">
+        <input type="hidden" name="screen_type" id="hiddenScreenType" value="{{ request.args.get('screen_type', '') }}">
+        <input type="hidden" name="refresh_rate" id="hiddenRefreshRate" value="{{ request.args.get('refresh_rate', '') }}">
+        <input type="hidden" name="ram" id="hiddenRam" value="{{ request.args.get('ram', '') }}">
+        <input type="hidden" name="rom" id="hiddenRom" value="{{ request.args.get('rom', '') }}">
+        <input type="hidden" name="video_recording" id="hiddenVideoRecording" value="{{ request.args.get('video_recording', '') }}">
+        <input type="hidden" name="wifi_version" id="hiddenWifiVersion" value="{{ request.args.get('wifi_version', '') }}">
+        <input type="hidden" name="bluetooth_version" id="hiddenBluetoothVersion" value="{{ request.args.get('bluetooth_version', '') }}">
+        <input type="hidden" name="sim_type" id="hiddenSimType" value="{{ request.args.get('sim_type', '') }}">
+        <input type="hidden" name="sim_count" id="hiddenSimCount" value="{{ request.args.get('sim_count', '') }}">
+        <input type="hidden" name="fingerprint_sensor" id="hiddenFingerprintSensor" value="{{ request.args.get('fingerprint_sensor', '') }}">
+        <input type="hidden" name="body_material" id="hiddenBodyMaterial" value="{{ request.args.get('body_material', '') }}">
+        <input type="hidden" name="ip_protection" id="hiddenIpProtection" value="{{ request.args.get('ip_protection', '') }}">
+        <input type="hidden" name="color" id="hiddenColor" value="{{ request.args.get('color', '') }}">
+        <!-- Checkbox фільтри -->
+        <input type="hidden" name="microsd_support" id="hiddenMicrosdSupport" value="">
+        <input type="hidden" name="optical_stabilization" id="hiddenOpticalStabilization" value="">
+        <input type="hidden" name="wireless_charge" id="hiddenWirelessCharge" value="">
+        <input type="hidden" name="reverse_charge" id="hiddenReverseCharge" value="">
+        <input type="hidden" name="support_5g" id="hiddenSupport5g" value="">
+        <input type="hidden" name="gps" id="hiddenGps" value="">
+        <input type="hidden" name="nfc" id="hiddenNfc" value="">
+        <input type="hidden" name="ir_port" id="hiddenIrPort" value="">
+        <input type="hidden" name="volte_support" id="hiddenVolteSupport" value="">
+        <input type="hidden" name="face_unlock" id="hiddenFaceUnlock" value="">
       </form>
+    </div>
+    <div class="col-md-4">
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" id="clearFilters">Очистити фільтри</button>
+        <button class="btn btn-info" id="applyFilters">Застосувати фільтри</button>
+      </div>
+    </div>
   </div>
 
   <div class="row">
@@ -52,29 +86,26 @@
         <label for="sortSelect" class="form-label"><strong>Сортування:</strong></label>
         <select id="sortSelect" class="form-select" style="max-width: 250px;">
           <option value="">За замовчуванням</option>
-          <option value="title_asc">Назва (А → Я)</option>
-          <option value="title_desc">Назва (Я → А)</option>
-          <option value="price_asc">Ціна (від дешевих)</option>
-          <option value="price_desc">Ціна (від дорогих)</option>
+          <option value="title_asc" {{ 'selected' if request.args.get('sort') == 'title_asc' }}>Назва (А → Я)</option>
+          <option value="title_desc" {{ 'selected' if request.args.get('sort') == 'title_desc' }}>Назва (Я → А)</option>
+          <option value="price_asc" {{ 'selected' if request.args.get('sort') == 'price_asc' }}>Ціна (від дешевих)</option>
+          <option value="price_desc" {{ 'selected' if request.args.get('sort') == 'price_desc' }}>Ціна (від дорогих)</option>
         </select>
       </div>
 
-
       <div class="row g-3">
-
         <!-- Карточки товарів -->
-            {% for product in products %}
-            <div class="col-md-3">
-              <div class="card product-card h-100">
-                <img src="{{ product.image_url }}" class="card-img-top" alt="{{ product.title }}">
-                  <div class="card-body text-center">
-                    <h6 class="card-title">{{ product.title }}</h6>
-                    <p class="card-text text-success fw-bold">{{ product.price }} грн</p>
-                  </div>
+        {% for product in products %}
+        <div class="col-md-3">
+          <div class="card product-card h-100">
+            <img src="{{ product.image_url }}" class="card-img-top" alt="{{ product.title }}">
+              <div class="card-body text-center">
+                <h6 class="card-title">{{ product.title }}</h6>
+                <p class="card-text text-success fw-bold">{{ product.price }} грн</p>
               </div>
-            </div>
-          {% endfor %}
-
+          </div>
+        </div>
+        {% endfor %}
       </div>
     </div>
 
@@ -82,95 +113,211 @@
     <div class="col-md-3">
       <div class="filters">
         <h6>📱 Основні характеристики</h6>
-        <div class="mb-2">
+        <div class="mb-3">
           <label for="brandFilter" class="form-label">Бренд</label>
-          <select id="brandFilter" class="form-select">
+          <select id="brandFilter" class="form-select filter-select">
             <option value="">Усі</option>
-            <option value="Apple">Apple</option>
-            <option value="Samsung">Samsung</option>
-            <option value="Xiaomi">Xiaomi</option>
+            {% for brand in filter_options.brand %}
+            <option value="{{ brand }}" {{ 'selected' if request.args.get('brand') == brand }}>{{ brand }}</option>
+            {% endfor %}
           </select>
         </div>
 
-        <div class="mb-2">
+        <div class="mb-3">
           <label for="osFilter" class="form-label">ОС</label>
-          <select id="osFilter" class="form-select">
+          <select id="osFilter" class="form-select filter-select">
             <option value="">Усі</option>
-            <option value="Android">Android</option>
-            <option value="iOS">iOS</option>
-            <option value="HarmonyOS">HarmonyOS</option>
+            {% for os in filter_options.os %}
+            <option value="{{ os }}" {{ 'selected' if request.args.get('os') == os }}>{{ os }}</option>
+            {% endfor %}
           </select>
         </div>
 
         <h6>📺 Дисплей</h6>
-        <div class="mb-2">
+        <div class="mb-3">
           <label for="screenTypeFilter" class="form-label">Тип екрану</label>
-          <select id="screenTypeFilter" class="form-select">
+          <select id="screenTypeFilter" class="form-select filter-select">
             <option value="">Усі</option>
-            <option value="AMOLED">AMOLED</option>
-            <option value="OLED">OLED</option>
-            <option value="IPS">IPS</option>
+            {% for screen_type in filter_options.screen_type %}
+            <option value="{{ screen_type }}" {{ 'selected' if request.args.get('screen_type') == screen_type }}>{{ screen_type }}</option>
+            {% endfor %}
           </select>
         </div>
 
-        <div class="mb-2">
+        <div class="mb-3">
           <label for="refreshRateFilter" class="form-label">Частота оновлення</label>
-          <select id="refreshRateFilter" class="form-select">
+          <select id="refreshRateFilter" class="form-select filter-select">
             <option value="">Усі</option>
-            <option value="60 Гц">60 Гц</option>
-            <option value="90 Гц">90 Гц</option>
-            <option value="120 Гц">120 Гц</option>
+            {% for refresh_rate in filter_options.refresh_rate %}
+            <option value="{{ refresh_rate }}" {{ 'selected' if request.args.get('refresh_rate') == refresh_rate }}>{{ refresh_rate }}</option>
+            {% endfor %}
           </select>
         </div>
 
         <h6>⚙️ Продуктивність</h6>
-        <div class="mb-2">
+        <div class="mb-3">
           <label for="ramFilter" class="form-label">Оперативна памʼять (RAM)</label>
-          <select id="ramFilter" class="form-select">
+          <select id="ramFilter" class="form-select filter-select">
             <option value="">Уся</option>
-            <option value="4 ГБ">4 ГБ</option>
-            <option value="6 ГБ">6 ГБ</option>
-            <option value="8 ГБ">8 ГБ</option>
-            <option value="12 ГБ">12 ГБ</option>
-            <option value="32 ГБ">32 ГБ</option>
-            <option value="64 ГБ">64 ГБ</option>
+            {% for ram in filter_options.ram %}
+            <option value="{{ ram }}" {{ 'selected' if request.args.get('ram') == ram }}>{{ ram }}</option>
+            {% endfor %}
           </select>
         </div>
 
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="checkbox" id="microsdSupportFilter">
+        <div class="mb-3">
+          <label for="romFilter" class="form-label">Внутрішня памʼять (ROM)</label>
+          <select id="romFilter" class="form-select filter-select">
+            <option value="">Уся</option>
+            {% for rom in filter_options.rom %}
+            <option value="{{ rom }}" {{ 'selected' if request.args.get('rom') == rom }}>{{ rom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-check mb-3">
+          <input class="form-check-input filter-checkbox" type="checkbox" id="microsdSupportFilter" {{ 'checked' if request.args.get('microsd_support') == 'on' }}>
           <label class="form-check-label" for="microsdSupportFilter">Підтримка microSD</label>
         </div>
 
-        <h6>🔋 Акумулятор</h6>
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="checkbox" id="fastChargeFilter">
-          <label class="form-check-label" for="fastChargeFilter">Швидка зарядка</label>
+        <h6>📸 Камера</h6>
+        <div class="form-check mb-3">
+          <input class="form-check-input filter-checkbox" type="checkbox" id="opticalStabilizationFilter" {{ 'checked' if request.args.get('optical_stabilization') == 'on' }}>
+          <label class="form-check-label" for="opticalStabilizationFilter">Оптична стабілізація</label>
         </div>
 
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="checkbox" id="wirelessChargeFilter">
+        <div class="mb-3">
+          <label for="videoRecordingFilter" class="form-label">Відеозапис</label>
+          <select id="videoRecordingFilter" class="form-select filter-select">
+            <option value="">Будь-яка</option>
+            {% for video_recording in filter_options.video_recording %}
+            <option value="{{ video_recording }}" {{ 'selected' if request.args.get('video_recording') == video_recording }}>{{ video_recording }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <h6>🔋 Акумулятор</h6>
+        <div class="form-check mb-3">
+          <input class="form-check-input filter-checkbox" type="checkbox" id="wirelessChargeFilter" {{ 'checked' if request.args.get('wireless_charge') == 'on' }}>
           <label class="form-check-label" for="wirelessChargeFilter">Бездротова зарядка</label>
         </div>
 
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="checkbox" id="support5gFilter">
+        <div class="form-check mb-3">
+          <input class="form-check-input filter-checkbox" type="checkbox" id="reverseChargeFilter" {{ 'checked' if request.args.get('reverse_charge') == 'on' }}>
+          <label class="form-check-label" for="reverseChargeFilter">Зворотна зарядка</label>
+        </div>
+
+        <h6>🌐 Зв'язок</h6>
+        <div class="form-check mb-3">
+          <input class="form-check-input filter-checkbox" type="checkbox" id="support5gFilter" {{ 'checked' if request.args.get('support_5g') == 'on' }}>
           <label class="form-check-label" for="support5gFilter">Підтримка 5G</label>
         </div>
 
+        <div class="mb-3">
+          <label for="wifiVersionFilter" class="form-label">Версія Wi-Fi</label>
+          <select id="wifiVersionFilter" class="form-select filter-select">
+            <option value="">Будь-яка</option>
+            {% for wifi_version in filter_options.wifi_version %}
+            <option value="{{ wifi_version }}" {{ 'selected' if request.args.get('wifi_version') == wifi_version }}>{{ wifi_version }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="bluetoothVersionFilter" class="form-label">Версія Bluetooth</label>
+          <select id="bluetoothVersionFilter" class="form-select filter-select">
+            <option value="">Будь-яка</option>
+            {% for bluetooth_version in filter_options.bluetooth_version %}
+            <option value="{{ bluetooth_version }}" {{ 'selected' if request.args.get('bluetooth_version') == bluetooth_version }}>{{ bluetooth_version }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-check mb-3">
+          <input class="form-check-input filter-checkbox" type="checkbox" id="gpsFilter" {{ 'checked' if request.args.get('gps') == 'on' }}>
+          <label class="form-check-label" for="gpsFilter">GPS</label>
+        </div>
+
+        <div class="form-check mb-3">
+          <input class="form-check-input filter-checkbox" type="checkbox" id="nfcFilter" {{ 'checked' if request.args.get('nfc') == 'on' }}>
+          <label class="form-check-label" for="nfcFilter">NFC</label>
+        </div>
+
+        <div class="form-check mb-3">
+          <input class="form-check-input filter-checkbox" type="checkbox" id="irPortFilter" {{ 'checked' if request.args.get('ir_port') == 'on' }}>
+          <label class="form-check-label" for="irPortFilter">ІЧ-порт</label>
+        </div>
+
+        <h6>📞 SIM</h6>
+        <div class="mb-3">
+          <label for="simTypeFilter" class="form-label">Тип SIM</label>
+          <select id="simTypeFilter" class="form-select filter-select">
+            <option value="">Будь-який</option>
+            {% for sim_type in filter_options.sim_type %}
+            <option value="{{ sim_type }}" {{ 'selected' if request.args.get('sim_type') == sim_type }}>{{ sim_type }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="simCountFilter" class="form-label">Кількість SIM</label>
+          <select id="simCountFilter" class="form-select filter-select">
+            <option value="">Будь-яка</option>
+            {% for sim_count in filter_options.sim_count %}
+            <option value="{{ sim_count }}" {{ 'selected' if request.args.get('sim_count') == sim_count|string }}>{{ sim_count }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-check mb-3">
+          <input class="form-check-input filter-checkbox" type="checkbox" id="volteSupportFilter" {{ 'checked' if request.args.get('volte_support') == 'on' }}>
+          <label class="form-check-label" for="volteSupportFilter">Підтримка VoLTE</label>
+        </div>
+
         <h6>🔐 Безпека</h6>
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="checkbox" id="faceUnlockFilter">
+        <div class="form-check mb-3">
+          <input class="form-check-input filter-checkbox" type="checkbox" id="faceUnlockFilter" {{ 'checked' if request.args.get('face_unlock') == 'on' }}>
           <label class="form-check-label" for="faceUnlockFilter">Розпізнавання обличчя</label>
         </div>
 
-        <div class="mb-2">
+        <div class="mb-3">
           <label for="fingerprintFilter" class="form-label">Сканер відбитка</label>
-          <select id="fingerprintFilter" class="form-select">
+          <select id="fingerprintFilter" class="form-select filter-select">
             <option value="">Будь-який</option>
-            <option value="під дисплеєм">Під дисплеєм</option>
-            <option value="збоку">Збоку</option>
-            <option value="на кнопці">На кнопці</option>
+            {% for fingerprint_sensor in filter_options.fingerprint_sensor %}
+            <option value="{{ fingerprint_sensor }}" {{ 'selected' if request.args.get('fingerprint_sensor') == fingerprint_sensor }}>{{ fingerprint_sensor }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <h6>🏗️ Корпус</h6>
+        <div class="mb-3">
+          <label for="bodyMaterialFilter" class="form-label">Матеріал корпусу</label>
+          <select id="bodyMaterialFilter" class="form-select filter-select">
+            <option value="">Будь-який</option>
+            {% for body_material in filter_options.body_material %}
+            <option value="{{ body_material }}" {{ 'selected' if request.args.get('body_material') == body_material }}>{{ body_material }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="ipProtectionFilter" class="form-label">IP-захист</label>
+          <select id="ipProtectionFilter" class="form-select filter-select">
+            <option value="">Будь-який</option>
+            {% for ip_protection in filter_options.ip_protection %}
+            <option value="{{ ip_protection }}" {{ 'selected' if request.args.get('ip_protection') == ip_protection }}>{{ ip_protection }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="colorFilter" class="form-label">Колір</label>
+          <select id="colorFilter" class="form-select filter-select">
+            <option value="">Будь-який</option>
+            {% for color in filter_options.color %}
+            <option value="{{ color }}" {{ 'selected' if request.args.get('color') == color }}>{{ color }}</option>
+            {% endfor %}
           </select>
         </div>
       </div>
@@ -249,7 +396,6 @@
 
 <!-- Подключение собственного JavaScript -->
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-
 
 </body>
 </html>

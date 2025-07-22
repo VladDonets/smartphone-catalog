@@ -11,6 +11,28 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(users_bp)
 
 
+def get_filter_options():
+    """Отримуємо унікальні значення для фільтрів з БД"""
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    filter_options = {}
+    
+    # Отримуємо унікальні значення для кожного поля
+    fields_to_check = [
+        'brand', 'os', 'screen_type', 'refresh_rate', 'ram', 'rom',
+        'video_recording', 'wifi_version', 'bluetooth_version', 'sim_type',
+        'sim_count', 'fingerprint_sensor', 'body_material', 'ip_protection', 'color'
+    ]
+    
+    for field in fields_to_check:
+        cursor.execute(f"SELECT DISTINCT {field} FROM products WHERE {field} IS NOT NULL AND {field} != '' ORDER BY {field}")
+        filter_options[field] = [row[field] for row in cursor.fetchall()]
+    
+    conn.close()
+    return filter_options
+
+
 @app.route("/")
 def index():
     user = None
@@ -27,12 +49,28 @@ def index():
     screen_type = request.args.get('screen_type', '')
     refresh_rate = request.args.get('refresh_rate', '')
     ram = request.args.get('ram', '')
-    microsd_support = request.args.get('microsd_support', '')
-    fast_charge = request.args.get('fast_charge', '')
-    wireless_charge = request.args.get('wireless_charge', '')
-    support_5g = request.args.get('support_5g', '')
-    face_unlock = request.args.get('face_unlock', '')
+    rom = request.args.get('rom', '')
+    video_recording = request.args.get('video_recording', '')
+    wifi_version = request.args.get('wifi_version', '')
+    bluetooth_version = request.args.get('bluetooth_version', '')
+    sim_type = request.args.get('sim_type', '')
+    sim_count = request.args.get('sim_count', '')
     fingerprint_sensor = request.args.get('fingerprint_sensor', '')
+    body_material = request.args.get('body_material', '')
+    ip_protection = request.args.get('ip_protection', '')
+    color = request.args.get('color', '')
+    
+    # Boolean фільтри (checkbox)
+    microsd_support = request.args.get('microsd_support', '')
+    optical_stabilization = request.args.get('optical_stabilization', '')
+    wireless_charge = request.args.get('wireless_charge', '')
+    reverse_charge = request.args.get('reverse_charge', '')
+    support_5g = request.args.get('support_5g', '')
+    gps = request.args.get('gps', '')
+    nfc = request.args.get('nfc', '')
+    ir_port = request.args.get('ir_port', '')
+    volte_support = request.args.get('volte_support', '')
+    face_unlock = request.args.get('face_unlock', '')
 
     # Формуємо SQL для сортування
     order_by = ""
@@ -53,6 +91,7 @@ def index():
         where_clauses.append("title LIKE %(search)s")
         params['search'] = f"%{search_query}%"
 
+    # Текстові фільтри
     if brand:
         where_clauses.append("brand = %(brand)s")
         params['brand'] = brand
@@ -73,25 +112,76 @@ def index():
         where_clauses.append("ram = %(ram)s")
         params['ram'] = ram
 
-    # Для чекбоксів передаються "on" якщо вибрано, тому краще перевіряти:
-    if microsd_support == 'on':
-        where_clauses.append("microsd_support = 1")
+    if rom:
+        where_clauses.append("rom = %(rom)s")
+        params['rom'] = rom
 
-    if fast_charge == 'on':
-        where_clauses.append("fast_charge = 1")
+    if video_recording:
+        where_clauses.append("video_recording = %(video_recording)s")
+        params['video_recording'] = video_recording
 
-    if wireless_charge == 'on':
-        where_clauses.append("wireless_charge = 1")
+    if wifi_version:
+        where_clauses.append("wifi_version = %(wifi_version)s")
+        params['wifi_version'] = wifi_version
 
-    if support_5g == 'on':
-        where_clauses.append("support_5g = 1")
+    if bluetooth_version:
+        where_clauses.append("bluetooth_version = %(bluetooth_version)s")
+        params['bluetooth_version'] = bluetooth_version
 
-    if face_unlock == 'on':
-        where_clauses.append("face_unlock = 1")
+    if sim_type:
+        where_clauses.append("sim_type = %(sim_type)s")
+        params['sim_type'] = sim_type
+
+    if sim_count:
+        where_clauses.append("sim_count = %(sim_count)s")
+        params['sim_count'] = sim_count
 
     if fingerprint_sensor:
         where_clauses.append("fingerprint_sensor = %(fingerprint_sensor)s")
         params['fingerprint_sensor'] = fingerprint_sensor
+
+    if body_material:
+        where_clauses.append("body_material = %(body_material)s")
+        params['body_material'] = body_material
+
+    if ip_protection:
+        where_clauses.append("ip_protection = %(ip_protection)s")
+        params['ip_protection'] = ip_protection
+
+    if color:
+        where_clauses.append("color = %(color)s")
+        params['color'] = color
+
+    # Boolean фільтри (checkbox)
+    if microsd_support == 'on':
+        where_clauses.append("microsd_support = 1")
+
+    if optical_stabilization == 'on':
+        where_clauses.append("optical_stabilization = 1")
+
+    if wireless_charge == 'on':
+        where_clauses.append("wireless_charge = 1")
+
+    if reverse_charge == 'on':
+        where_clauses.append("reverse_charge = 1")
+
+    if support_5g == 'on':
+        where_clauses.append("support_5g = 1")
+
+    if gps == 'on':
+        where_clauses.append("gps = 1")
+
+    if nfc == 'on':
+        where_clauses.append("nfc = 1")
+
+    if ir_port == 'on':
+        where_clauses.append("ir_port = 1")
+
+    if volte_support == 'on':
+        where_clauses.append("volte_support = 1")
+
+    if face_unlock == 'on':
+        where_clauses.append("face_unlock = 1")
 
     where_sql = ''
     if where_clauses:
@@ -110,7 +200,10 @@ def index():
     products = cursor.fetchall()
     conn.close()
 
-    return render_template("index.html", user=user, products=products)
+    # Отримуємо опції для фільтрів
+    filter_options = get_filter_options()
+
+    return render_template("index.html", user=user, products=products, filter_options=filter_options)
 
 
 @app.route('/users')
@@ -147,7 +240,7 @@ def add_product():
         # Перевірка обов'язкових полів
         for field in required_fields:
             if not form_data.get(field):
-                return "Помилка: обов’язкові поля не заповнено", 400
+                return "Помилка: обов'язкові поля не заповнено", 400
 
         # Додавання одиниць виміру, якщо поле не пусте
         if form_data.get("screen_size"):
