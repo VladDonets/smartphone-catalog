@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Додати смартфон</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+  <h2 class="mb-4">📱 Додати новий смартфон</h2>
+  <form method="POST" action="/add-product">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Назва *</label>
+        <input type="text" class="form-control" name="title" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Ціна (грн) *</label>
+        <input type="number" step="0.01" class="form-control" name="price" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">URL зображення *</label>
+        <input type="url" class="form-control" name="image_url" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Бренд</label>
+        <input type="text" class="form-control" name="brand">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">ОС</label>
+        <select class="form-select" name="os">
+            <option value="">-</option>
+            <option value="ios">iOS</option>
+            <option value="android">Android</option>
+        </select>
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Дата релізу</label>
+        <input type="date" class="form-control" name="release_date">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Розмір екрана</label>
+        <input type="text" class="form-control" name="screen_size" placeholder="Наприклад, 6.5">
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Роздільна здатність</label>
+        <input type="text" class="form-control" name="resolution">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Тип екрана</label>
+        <select class="form-select" name="screen_type">
+            <option value="">-</option>
+            <option value="OLED">OLED</option>
+            <option value="AMOLED">AMOLED</option>
+            <option value="IPS">IPS</option>
+            <option value="LTPS">LTPS</option>
+            <option value="PLS">PLS</option>
+        </select>
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Частота оновлення</label>
+        <select class="form-select" name="refresh_rate">
+            <option value="">-</option>
+            <option value="60Гц">60Гц</option>
+            <option value="90Гц">90Гц</option>
+            <option value="120Гц">120Гц</option>
+            <option value="144Гц">144Гц</option>
+            <option value="165Гц">165Гц</option>
+        </select>
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">CPU</label>
+        <input type="text" class="form-control" name="cpu">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">GPU</label>
+        <input type="text" class="form-control" name="gpu">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">RAM</label>
+        <select class="form-select" name="ram">
+            <option value="">-</option>
+            <option value="4Гб">4Гб</option>
+            <option value="6Гб">6Гб</option>
+            <option value="8Гб">8Гб</option>
+            <option value="12Гб">12Гб</option>
+            <option value="16Гб">16Гб</option>
+            <option value="32Гб">32Гб</option>
+        </select>
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">ROM</label>
+        <select class="form-select" name="rom">
+            <option value="">-</option>
+            <option value="64Гб">64Гб</option>
+            <option value="128Гб">128Гб</option>
+            <option value="256Гб">256Гб</option>
+            <option value="512Гб">512Гб</option>
+            <option value="1Тб">1Тб</option>
+        </select>
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Підтримка microSD</label>
+        <select class="form-select" name="microsd_support">
+          <option value="">-</option>
+          <option value="1">Так</option>
+          <option value="0">Ні</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Основна камера</label>
+        <input type="text" class="form-control" name="main_camera" placeholder="Наприклад, 48">
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Фронтальна камера</label>
+        <input type="text" class="form-control" name="selfie_camera" placeholder="Наприклад, 12">
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Оптична стабілізація</label>
+        <select class="form-select" name="optical_stabilization">
+          <option value="">-</option>
+          <option value="1">Так</option>
+          <option value="0">Ні</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Запис відео</label>
+        <select class="form-select" name="video_recording">
+            <option value="">-</option>
+            <option value="FullHD">FullHD</option>
+            <option value="2k">2k</option>
+            <option value="4k">4k</option>
+        </select>
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Ємність батареї (мАг)</label>
+        <input type="number" class="form-control" name="battery_capacity">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Швидка зарядка</label>
+        <select class="form-select" name="fast_charge">
+            <option value="">-</option>
+            <option value="Так">Так</option>
+            <option value="Ні">Ні</option>
+        </select>
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Бездротова зарядка</label>
+        <select class="form-select" name="wireless_charge">
+          <option value="">-</option>
+          <option value="1">Так</option>
+          <option value="0">Ні</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Зворотна зарядка</label>
+        <select class="form-select" name="reverse_charge">
+          <option value="">-</option>
+          <option value="1">Так</option>
+          <option value="0">Ні</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Підтримка 5G</label>
+        <select class="form-select" name="support_5g">
+          <option value="">-</option>
+          <option value="1">Так</option>
+          <option value="0">Ні</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Wi-Fi версія</label>
+        <input type="text" class="form-control" name="wifi_version">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Bluetooth</label>
+        <input type="text" class="form-control" name="bluetooth_version">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">GPS</label>
+        <select class="form-select" name="gps">
+          <option value="">-</option>
+          <option value="1">Так</option>
+          <option value="0">Ні</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">NFC</label>
+        <select class="form-select" name="nfc">
+          <option value="">-</option>
+          <option value="1">Так</option>
+          <option value="0">Ні</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">IR-порт</label>
+        <select class="form-select" name="ir_port">
+          <option value="">-</option>
+          <option value="1">Так</option>
+          <option value="0">Ні</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Тип SIM</label>
+        <select class="form-select" name="sim_type">
+            <option value="">-</option>
+            <option value="Micro-SIM">Micro-SIM</option>
+            <option value="Nano-SIM">Nano-SIM</option>
+            <option value="eSIM">eSIM</option>
+        </select>
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Кількість SIM</label>
+        <input type="number" class="form-control" name="sim_count">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">VoLTE</label>
+        <select class="form-select" name="volte_support">
+          <option value="">-</option>
+          <option value="1">Так</option>
+          <option value="0">Ні</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Сканер відбитка</label>
+        <select class="form-select" name="fingerprint_sensor">
+            <option value="">-</option>
+            <option value="Відсутній">Відсутній</option>
+            <option value="Спереду">Спереду</option>
+            <option value="Ззаду">Ззаду</option>
+            <option value="Збоку">Збоку</option>
+            <option value="В екрані">В екрані</option>
+        </select>
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Розпізнавання обличчя</label>
+        <select class="form-select" name="face_unlock">
+          <option value="">-</option>
+          <option value="1">Так</option>
+          <option value="0">Ні</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Матеріал корпуса</label>
+        <input type="text" class="form-control" name="body_material">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Захист IP</label>
+        <input type="text" class="form-control" name="ip_protection">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Габарити</label>
+        <input type="text" class="form-control" name="dimensions" placeholder="Наприклад, 160x75x8.5">
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Вага</label>
+        <input type="text" class="form-control" name="weight" placeholder="Наприклад, 190">
+        </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Колір</label>
+        <input type="text" class="form-control" name="color">
+      </div>
+      <div class="col-12 mb-3">
+        <label class="form-label">Аксесуари</label>
+        <textarea class="form-control" name="accessories" rows="2"></textarea>
+      </div>
+      <div class="col-12 mb-3">
+        <label class="form-label">Інтерфейси</label>
+        <select class="form-select" name="interfaces" multiple>
+            <option value="USB Type-C">USB Type-C</option>
+            <option value="MicroUSB">MicroUSB</option>
+            <option value="Lightning">Lightning</option>
+            <option value="Lightning">3.5</option>
+        </select>
+        <div class="form-text">* Утримуйте Ctrl (або ⌘ на Mac), щоб вибрати кілька</div>
+        </div>
+    <button type="submit" class="btn btn-success">➕ Додати смартфон</button>
+  </form>
+</div>
+</body>
+</html>
