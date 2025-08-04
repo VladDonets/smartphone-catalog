@@ -132,20 +132,24 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Обработчик выхода
-  document.getElementById('btnLogout').addEventListener('click', async function() {
+  const btnLogout = document.getElementById('btnLogout');
+  if (btnLogout) {
+  btnLogout.addEventListener('click', async function() {
     try {
       const res = await fetch('/logout', { method: 'POST' });
       if (res.ok) {
         alert('✅ Ви успішно вийшли з системи');
-        location.reload();
+        window.location.href = '/';
       } else {
         alert('❌ Помилка при виході');
       }
     } catch (error) {
-      console.error('Ошибка выхода:', error);
+      console.error('Помилка виходу:', error);
       alert('❌ Помилка підключення до сервера');
     }
   });
+}
+
 
   document.getElementById('sortSelect').addEventListener('change', function () {
     const url = new URL(window.location);
@@ -228,4 +232,113 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
 
+  document.addEventListener('click', async function(e) {
+    // Обработчик для кнопки вишлиста
+    if (e.target.classList.contains('wishlist-btn') || e.target.closest('.wishlist-btn')) {
+      e.preventDefault();
+      const btn = e.target.classList.contains('wishlist-btn') ? e.target : e.target.closest('.wishlist-btn');
+      const productId = btn.getAttribute('data-product-id');
+      
+      try {
+        const response = await fetch('/add-to-wishlist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ product_id: parseInt(productId) })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ ' + data.message);
+          // Можно изменить вид кнопки для показа что товар добавлен
+          btn.style.backgroundColor = '#dc3545';
+          btn.style.color = 'white';
+        } else {
+          if (response.status === 401) {
+            alert('❌ Для додавання товарів до вишлисту необхідно авторизуватися!');
+          } else {
+            alert('❌ ' + data.error);
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка при добавлении в вишлист:', error);
+        alert('❌ Помилка підключення до сервера');
+      }
+    }
+    
+    // Обработчик для кнопки корзины
+    if (e.target.classList.contains('cart-btn') || e.target.closest('.cart-btn')) {
+      e.preventDefault();
+      const btn = e.target.classList.contains('cart-btn') ? e.target : e.target.closest('.cart-btn');
+      const productId = btn.getAttribute('data-product-id');
+      
+      try {
+        const response = await fetch('/add-to-cart', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ product_id: parseInt(productId), quantity: 1 })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ ' + data.message);
+          // Можно изменить вид кнопки для показа что товар добавлен
+          btn.style.backgroundColor = '#0d6efd';
+          btn.style.color = 'white';
+        } else {
+          if (response.status === 401) {
+            alert('❌ Для додавання товарів до кошика необхідно авторизуватися!');
+          } else {
+            alert('❌ ' + data.error);
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка при добавлении в корзину:', error);
+        alert('❌ Помилка підключення до сервера');
+      }
+    }
+
+        // Обробка кнопки "Прибрати з вішлиста"
+    if (e.target.classList.contains('remove-wishlist-btn') || e.target.closest('.remove-wishlist-btn')) {
+      e.preventDefault();
+      const btn = e.target.classList.contains('remove-wishlist-btn') ? e.target : e.target.closest('.remove-wishlist-btn');
+      const productId = btn.getAttribute('data-product-id');
+
+      try {
+        const response = await fetch('/remove-from-wishlist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ product_id: parseInt(productId) })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert('✅ ' + data.message);
+          location.reload(); // оновлюємо сторінку після видалення
+        } else {
+          if (response.status === 401) {
+            alert('❌ Необхідно авторизуватись');
+          } else {
+            alert('❌ ' + data.error);
+          }
+        }
+      } catch (error) {
+        console.error('Помилка видалення з вішлиста:', error);
+        alert('❌ Помилка підключення до сервера');
+      }
+    }
+
+
+  });
+
+  
+  
 });

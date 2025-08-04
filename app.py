@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, render_template, session, request, redirect
-
+import json
 from db import get_connection
 from routes.auth import auth_bp
 from routes.users import users_bp
@@ -203,17 +203,9 @@ def index():
     # Отримуємо опції для фільтрів
     filter_options = get_filter_options()
 
+    
+
     return render_template("index.html", user=user, products=products, filter_options=filter_options)
-
-
-@app.route('/users')
-def users():
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM users")
-    result = cursor.fetchall()
-    conn.close()
-    return jsonify(result)
 
 
 @app.route('/add-product', methods=['GET', 'POST'])
@@ -302,6 +294,291 @@ def add_product():
         return redirect("/")
 
     return render_template('add_product.html')
+
+
+# Добавить эти маршруты в app.py после существующих маршрутов
+
+@app.route('/add-to-wishlist', methods=['POST'])
+def add_to_wishlist():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Необхідно авторизуватися'}), 401
+    
+    data = request.get_json()
+    product_id = int(data.get('product_id'))
+
+    
+    if not product_id:
+        return jsonify({'success': False, 'error': 'Не вказано ID товару'}), 400
+    
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Получаем текущий вишлист пользователя
+    cursor.execute("SELECT wishlist FROM users WHERE id = %s", (session['user_id'],))
+    user_data = cursor.fetchone()
+    
+    if not user_data:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Користувач не знайдений'}), 404
+    
+    # Парсим JSON вишлиста или создаем пустой список
+    import json
+    try:
+        wishlist = json.loads(user_data['wishlist']) if user_data['wishlist'] else []
+    except:
+        wishlist = []
+    
+    # Проверяем, есть ли уже товар в вишлисте
+    if product_id in wishlist:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Товар вже в вишлисті'}), 400
+    
+    # Добавляем товар в вишлист
+    wishlist.append(product_id)
+    
+    # Обновляем в БД
+    cursor.execute("UPDATE users SET wishlist = %s WHERE id = %s", 
+                  (json.dumps(wishlist), session['user_id']))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Товар додано до вишлисту'})
+
+
+@app.route('/add-to-cart', methods=['POST'])
+def add_to_cart():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Необхідно авторизуватися'}), 401
+    
+    data = request.get_json()
+    product_id = data.get('product_id')
+    quantity = data.get('quantity', 1)
+    
+    if not product_id:
+        return jsonify({'success': False, 'error': 'Не вказано ID товару'}), 400
+    
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Получаем текущую корзину пользователя
+    cursor.execute("SELECT cart FROM users WHERE id = %s", (session['user_id'],))
+    user_data = cursor.fetchone()
+    
+    if not user_data:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Користувач не знайдений'}), 404
+    
+    # Парсим JSON корзины или создаем пустой словарь
+    import json
+    try:
+        cart = json.loads(user_data['cart']) if user_data['cart'] else {}
+    except:
+        cart = {}
+    
+    # Добавляем товар в корзину (если уже есть - увеличиваем количество)
+    if str(product_id) in cart:
+        cart[str(product_id)] += quantity
+    else:
+        cart[str(product_id)] = quantity
+    
+    # Обновляем в БД
+    cursor.execute("UPDATE users SET cart = %s WHERE id = %s", 
+                  (json.dumps(cart), session['user_id']))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Товар додано до кошика'})
+
+
+@app.route('/wishlist')
+def wishlist():
+    if 'user_id' not in session:
+        return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Отримати вішлист користувача
+    cursor.execute("SELECT wishlist, cart FROM users WHERE id = %s", (session['user_id'],))
+    user_data = cursor.fetchone()
+
+    wishlist_ids = []
+    cart_ids = []
+
+    import json
+    if user_data:
+        wishlist_ids = json.loads(user_data['wishlist']) if user_data['wishlist'] else []
+        cart_data = json.loads(user_data['cart']) if user_data['cart'] else {}
+        cart_ids = list(map(int, cart_data.keys()))
+
+    # Якщо вішлист не порожній — отримати продукти
+    products = []
+    if wishlist_ids:
+        format_strings = ','.join(['%s'] * len(wishlist_ids))
+        cursor.execute(f"SELECT id, title, image_url, price FROM products WHERE id IN ({format_strings})", tuple(wishlist_ids))
+        products = cursor.fetchall()
+
+    conn.close()
+    return render_template("wishlist.html", user={'username': session.get('username')}, products=products, cart_ids=cart_ids)
+
+@app.route('/remove-from-wishlist', methods=['POST'])
+def remove_from_wishlist():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Необхідно авторизуватися'}), 401
+
+    data = request.get_json()
+    product_id = data.get('product_id')
+
+    if not product_id:
+        return jsonify({'success': False, 'error': 'Не вказано ID товару'}), 400
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT wishlist FROM users WHERE id = %s", (session['user_id'],))
+    user_data = cursor.fetchone()
+
+    import json
+    wishlist = json.loads(user_data['wishlist']) if user_data and user_data['wishlist'] else []
+
+    if int(product_id) not in wishlist:
+        return jsonify({'success': False, 'error': 'Товар не знайдено у вішлисті'}), 404
+
+    wishlist.remove(int(product_id))
+    cursor.execute("UPDATE users SET wishlist = %s WHERE id = %s", (json.dumps(wishlist), session['user_id']))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'message': 'Товар видалено з вішлисту'})
+
+
+@app.route('/cart')
+def cart():
+    if 'user_id' not in session:
+        return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Отримати корзину користувача
+    cursor.execute("SELECT cart FROM users WHERE id = %s", (session['user_id'],))
+    user_data = cursor.fetchone()
+
+    cart_items = {}
+    products = []
+    total_price = 0
+
+    import json
+    if user_data and user_data['cart']:
+        # Отримуємо словник товарів з cart {product_id: quantity}
+        cart_items = json.loads(user_data['cart'])
+        
+        if cart_items:
+            # Получаем информацию о товарах в корзине
+            product_ids = list(cart_items.keys())
+            format_strings = ','.join(['%s'] * len(product_ids))
+            cursor.execute(f"SELECT id, title, image_url, price FROM products WHERE id IN ({format_strings})", 
+                         tuple(map(int, product_ids)))
+            products_data = cursor.fetchall()
+            
+            # Добавляем количество к каждому товару и считаем общую стоимость
+            for product in products_data:
+                product_id = str(product['id'])
+                quantity = cart_items[product_id]
+                product['quantity'] = quantity
+                product['total_price'] = product['price'] * quantity
+                total_price += product['total_price']
+                products.append(product)
+
+    conn.close()
+    return render_template("cart.html", 
+                         user={'username': session.get('username')}, 
+                         products=products,
+                         total_price=total_price)
+
+
+@app.route('/remove-from-cart', methods=['POST'])
+def remove_from_cart():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Необхідно авторизуватися'}), 401
+
+    data = request.get_json()
+    product_id = str(data.get('product_id'))
+
+    if not product_id:
+        return jsonify({'success': False, 'error': 'Не вказано ID товару'}), 400
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT cart FROM users WHERE id = %s", (session['user_id'],))
+    user_data = cursor.fetchone()
+
+    import json
+    cart = json.loads(user_data['cart']) if user_data and user_data['cart'] else {}
+
+    if product_id not in cart:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Товар не знайдено у кошику'}), 404
+
+    # Удаляем товар из корзины
+    del cart[product_id]
+    
+    cursor.execute("UPDATE users SET cart = %s WHERE id = %s", (json.dumps(cart), session['user_id']))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'message': 'Товар видалено з кошика'})
+
+
+@app.route('/update-cart-quantity', methods=['POST'])
+def update_cart_quantity():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Необхідно авторизуватися'}), 401
+
+    data = request.get_json()
+    product_id = str(data.get('product_id'))
+    new_quantity = int(data.get('quantity', 1))
+
+    if not product_id or new_quantity < 1:
+        return jsonify({'success': False, 'error': 'Некоректні дані'}), 400
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT cart FROM users WHERE id = %s", (session['user_id'],))
+    user_data = cursor.fetchone()
+
+    import json
+    cart = json.loads(user_data['cart']) if user_data and user_data['cart'] else {}
+
+    if product_id not in cart:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Товар не знайдено у кошику'}), 404
+
+    # Обновляем количество товара
+    cart[product_id] = new_quantity
+    
+    cursor.execute("UPDATE users SET cart = %s WHERE id = %s", (json.dumps(cart), session['user_id']))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'message': 'Кількість оновлено'})
+
+
+@app.route('/clear-cart', methods=['POST'])
+def clear_cart():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Необхідно авторизуватися'}), 401
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("UPDATE users SET cart = %s WHERE id = %s", ('{}', session['user_id']))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'message': 'Кошик очищено'})
 
 
 if __name__ == '__main__':

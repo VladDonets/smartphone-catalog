@@ -71,3 +71,17 @@ form button[type="submit"] {
 .auth-inline {
   display: inline-block !important;
 }
+
+.filters {
+    position: sticky;
+    top: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding-right: 10px;
+  }
+
+  .btn-secondary.wishlist-btn {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  color: white;
+}

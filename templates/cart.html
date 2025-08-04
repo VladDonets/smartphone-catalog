@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">Мій кошик</h2>
+  
+  {% if products %}
+    <div class="row">
+      <div class="col-lg-8">
+        <!-- Товары в корзине -->
+        <div class="list-group" id="cartItems">
+          {% for product in products %}
+            <div class="list-group-item" data-product-id="{{ product.id }}">
+              <div class="row align-items-center">
+                <div class="col-md-2">
+                  <img src="{{ product.image_url }}" alt="{{ product.title }}" class="img-fluid rounded" style="max-width: 80px;">
+                </div>
+                <div class="col-md-4">
+                  <h6 class="mb-1">{{ product.title }}</h6>
+                  <p class="mb-1 text-muted">{{ product.price }} грн за шт.</p>
+                </div>
+                <div class="col-md-3">
+                  <div class="d-flex align-items-center">
+                    <label class="form-label me-2 mb-0">Кількість:</label>
+                    <div class="input-group" style="width: 120px;">
+                      <button class="btn btn-outline-secondary btn-sm quantity-decrease" type="button">-</button>
+                      <input type="number" class="form-control form-control-sm text-center quantity-input" 
+                             value="{{ product.quantity }}" min="1" max="99" data-product-id="{{ product.id }}">
+                      <button class="btn btn-outline-secondary btn-sm quantity-increase" type="button">+</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <strong class="total-price" data-unit-price="{{ product.price }}">{{ product.total_price }} грн</strong>
+                </div>
+                <div class="col-md-1">
+                  <button class="btn btn-outline-danger btn-sm remove-cart-btn" data-product-id="{{ product.id }}" title="Видалити з кошика">
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        
+        <!-- Кнопка очистки корзины -->
+        <div class="mt-3">
+          <button class="btn btn-outline-danger" id="clearCart">Очистити кошик</button>
+        </div>
+      </div>
+      
+      <!-- Сводка заказа -->
+      <div class="col-lg-4">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">Разом</h5>
+          </div>
+          <div class="card-body">
+            <div class="d-flex justify-content-between mb-2">
+              <span>Товари:</span>
+              <span id="itemsCount">{{ products|length }} шт.</span>
+            </div>
+            <div class="d-flex justify-content-between mb-3">
+              <strong>Загальна сума:</strong>
+              <strong id="totalPrice">{{ total_price }} грн</strong>
+            </div>
+            <button class="btn btn-success w-100 mb-2">Оформити замовлення</button>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-primary w-100">Продовжити покупки</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="text-center py-5">
+      <h4>Ваш кошик порожній</h4>
+      <p class="text-muted">Додайте товари до кошика, щоб продовжити покупки</p>
+      <a href="{{ url_for('index') }}" class="btn btn-primary">Перейти до каталогу</a>
+    </div>
+  {% endif %}
+</div>
+
+<!-- JavaScript для корзины -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  
+  // Функция обновления общей суммы
+  function updateTotalPrice() {
+    let total = 0;
+    let itemCount = 0;
+    
+    document.querySelectorAll('.list-group-item').forEach(item => {
+      const quantity = parseInt(item.querySelector('.quantity-input').value);
+      const unitPrice = parseFloat(item.querySelector('.total-price').dataset.unitPrice);
+      const itemTotal = quantity * unitPrice;
+      
+      item.querySelector('.total-price').textContent = itemTotal + ' грн';
+      total += itemTotal;
+      itemCount += quantity;
+    });
+    
+    document.getElementById('totalPrice').textContent = total + ' грн';
+    document.getElementById('itemsCount').textContent = itemCount + ' шт.';
+  }
+  
+  // Обработчики для кнопок количества
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('quantity-decrease')) {
+      const input = e.target.nextElementSibling;
+      const currentValue = parseInt(input.value);
+      if (currentValue > 1) {
+        input.value = currentValue - 1;
+        updateQuantityOnServer(input.dataset.productId, currentValue - 1);
+        updateTotalPrice();
+      }
+    }
+    
+    if (e.target.classList.contains('quantity-increase')) {
+      const input = e.target.previousElementSibling;
+      const currentValue = parseInt(input.value);
+      if (currentValue < 99) {
+        input.value = currentValue + 1;
+        updateQuantityOnServer(input.dataset.productId, currentValue + 1);
+        updateTotalPrice();
+      }
+    }
+  });
+  
+  // Обработчик изменения количества в поле ввода
+  document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('quantity-input')) {
+      const newValue = parseInt(e.target.value);
+      if (newValue >= 1 && newValue <= 99) {
+        updateQuantityOnServer(e.target.dataset.productId, newValue);
+        updateTotalPrice();
+      } else {
+        e.target.value = 1;
+        updateQuantityOnServer(e.target.dataset.productId, 1);
+        updateTotalPrice();
+      }
+    }
+  });
+  
+  // Функция обновления количества на сервере
+  async function updateQuantityOnServer(productId, quantity) {
+    try {
+      const response = await fetch('/update-cart-quantity', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          product_id: parseInt(productId), 
+          quantity: quantity 
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        console.error('Ошибка обновления количества:', data.error);
+      }
+    } catch (error) {
+      console.error('Ошибка при обновлении количества:', error);
+    }
+  }
+  
+  // Обработчик удаления товара из корзины
+  document.addEventListener('click', async function(e) {
+    if (e.target.classList.contains('remove-cart-btn')) {
+      e.preventDefault();
+      const productId = e.target.dataset.productId;
+      
+      if (confirm('Ви впевнені, що хочете видалити цей товар з кошика?')) {
+        try {
+          const response = await fetch('/remove-from-cart', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ product_id: parseInt(productId) })
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            // Удаляем элемент из DOM
+            const listItem = e.target.closest('.list-group-item');
+            listItem.remove();
+            
+            // Обновляем общую сумму
+            updateTotalPrice();
+            
+            // Проверяем, остались ли товары
+            const remainingItems = document.querySelectorAll('.list-group-item');
+            if (remainingItems.length === 0) {
+              location.reload(); // Перезагружаем страницу для показа пустой корзины
+            }
+            
+            alert('✅ ' + data.message);
+          } else {
+            alert('❌ ' + data.error);
+          }
+        } catch (error) {
+          console.error('Ошибка при удалении из корзины:', error);
+          alert('❌ Помилка підключення до сервера');
+        }
+      }
+    }
+  });
+  
+  // Обработчик очистки корзины
+  document.getElementById('clearCart')?.addEventListener('click', async function() {
+    if (confirm('Ви впевнені, що хочете очистити весь кошик?')) {
+      try {
+        const response = await fetch('/clear-cart', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ ' + data.message);
+          location.reload();
+        } else {
+          alert('❌ ' + data.error);
+        }
+      } catch (error) {
+        console.error('Ошибка при очистке корзины:', error);
+        alert('❌ Помилка підключення до сервера');
+      }
+    }
+  });
+  
+});
+</script>
+{% endblock %}
