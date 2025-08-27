@@ -272,42 +272,37 @@ def index():
     cursor = conn.cursor(dictionary=True)
     cursor.execute(query, params)
     products = cursor.fetchall()
-    conn.close()
-
-    # Получаем опции для фильтров
-    filter_options = get_filter_options()
-
-    if 'user_id' in session:
-        active_filters = extract_active_filters(request.args)
-        if active_filters:
-            # сохраняем фильтры в users.filter_history
-            save_filter_history(session['user_id'], active_filters)
-
-    # Получаем рекомендации для карусели
-    rec_engine = RecommendationEngine()
     
-    # Читаем cookie 'recent_views'
+    # НОВОЕ: Получаем рекомендации для каруселей
+    rec_engine = RecommendationEngine()
     recent_views = []
     cookie_val = request.cookies.get('recent_views')
     if cookie_val:
         try:
             recent_views = json.loads(cookie_val)
-        except Exception:
+        except:
             recent_views = []
-    
-    # Исключаем товары, которые уже показаны в основном списке
-    exclude_ids = [p['id'] for p in products]
     
     if 'user_id' in session:
         recommendations = rec_engine.get_user_recommendations(
             session['user_id'], 
-            limit=8,
-            exclude_ids=exclude_ids,
+            limit=12,
+            exclude_ids=None,
             recent_views=recent_views
         )
     else:
-        recommendations = rec_engine.get_popular_products(limit=8, exclude_ids=exclude_ids)
+        recommendations = rec_engine.get_popular_products(limit=12)
+    
+    conn.close()
 
+    filter_options = get_filter_options()
+
+    if 'user_id' in session:
+        active_filters = extract_active_filters(request.args)
+        if active_filters:
+            save_filter_history(session['user_id'], active_filters)
+
+    # НОВОЕ: Передаем рекомендации в шаблон
     return render_template("index.html", 
                          user=user, 
                          products=products, 
@@ -524,8 +519,24 @@ def wishlist():
         cursor.execute(f"SELECT id, title, image_url, price FROM products WHERE id IN ({format_strings})", tuple(wishlist_ids))
         products = cursor.fetchall()
 
+    # --- Рекомендації ---
+    from recommendation_engine import RecommendationEngine
+    rec_engine = RecommendationEngine()
+
+    recommendations = rec_engine.get_user_recommendations(
+        session['user_id'],
+        limit=12,
+        exclude_ids=wishlist_ids  # не показываем уже добавленные в вишлист
+    )
+
     conn.close()
-    return render_template("wishlist.html", user={'username': session.get('username')}, products=products, cart_ids=cart_ids)
+
+    return render_template(
+        "wishlist.html",
+        user={'username': session.get('username')},
+        products=products,
+        cart_ids=cart_ids,
+        recommendations=recommendations)
 
 @app.route('/remove-from-wishlist', methods=['POST'])
 def remove_from_wishlist():
@@ -576,18 +587,15 @@ def cart():
 
     import json
     if user_data and user_data['cart']:
-        # Отримуємо словник товарів з cart {product_id: quantity}
         cart_items = json.loads(user_data['cart'])
         
         if cart_items:
-            # Получаем информацию о товарах в корзине
             product_ids = list(cart_items.keys())
             format_strings = ','.join(['%s'] * len(product_ids))
             cursor.execute(f"SELECT id, title, image_url, price FROM products WHERE id IN ({format_strings})", 
                          tuple(map(int, product_ids)))
             products_data = cursor.fetchall()
             
-            # Добавляем количество к каждому товару и считаем общую стоимость
             for product in products_data:
                 product_id = str(product['id'])
                 quantity = cart_items[product_id]
@@ -596,11 +604,33 @@ def cart():
                 total_price += product['total_price']
                 products.append(product)
 
+    # 🔥 Рекомендации
+    rec_engine = RecommendationEngine()
+    recent_views = []
+    cookie_val = request.cookies.get('recent_views')
+    if cookie_val:
+        try:
+            recent_views = json.loads(cookie_val)
+        except:
+            recent_views = []
+
+    if 'user_id' in session:
+        recommendations = rec_engine.get_user_recommendations(
+            session['user_id'], 
+            limit=12,
+            exclude_ids=list(map(int, cart_items.keys())) if cart_items else None,
+            recent_views=recent_views
+        )
+    else:
+        recommendations = rec_engine.get_popular_products(limit=12)
+
     conn.close()
     return render_template("cart.html", 
                          user={'username': session.get('username')}, 
                          products=products,
-                         total_price=total_price)
+                         total_price=total_price,
+                         recommendations=recommendations)
+
 
 
 @app.route('/remove-from-cart', methods=['POST'])
@@ -712,18 +742,14 @@ def product_detail(product_id):
     if user:
         cursor.execute("SELECT wishlist, cart FROM users WHERE id = %s", (session['user_id'],))
         user_data = cursor.fetchone()
-
         if user_data:
             import json
-            # Проверяем вишлист
             if user_data['wishlist']:
                 try:
                     wishlist_ids = json.loads(user_data['wishlist'])
                 except:
                     wishlist_ids = []
                 in_wishlist = product_id in wishlist_ids
-
-            # Проверяем корзину
             if user_data['cart']:
                 try:
                     cart_data = json.loads(user_data['cart'])
@@ -731,11 +757,34 @@ def product_detail(product_id):
                     cart_data = {}
                 in_cart = str(product_id) in cart_data
 
+    # --- Рекомендации для страницы товара ---
+    from recommendation_engine import RecommendationEngine
+    rec_engine = RecommendationEngine()
+    import json
+
+    # Читаем cookie recent_views
+    recent_views = []
+    cookie_val = request.cookies.get('recent_views')
+    if cookie_val:
+        try:
+            recent_views = json.loads(cookie_val)
+        except:
+            recent_views = []
+
+    if 'user_id' in session:
+        recommendations = rec_engine.get_user_recommendations(
+            session['user_id'],
+            limit=12,
+            exclude_ids=[product_id],   # исключаем текущий товар
+            recent_views=recent_views
+        )
+    else:
+        # если пользователь не залогинен — просто популярные
+        recommendations = rec_engine.get_popular_products(limit=12, exclude_ids=[product_id])
+
     conn.close()
 
     # --- cookie recent views (на стороне клиента) ---
-    # читаем существующий cookie recent_views, обновляем его (по последним 10)
-    import json
     recent = []
     cookie_val = request.cookies.get('recent_views')
     if cookie_val:
@@ -743,22 +792,19 @@ def product_detail(product_id):
             recent = json.loads(cookie_val)
         except:
             recent = []
-
-    # убираем дубли и добавляем текущий id в начало
     if product_id in recent:
         recent.remove(product_id)
     recent.insert(0, product_id)
     recent = recent[:10]
 
-    # формируем ответ с установкой cookie
     response = make_response(render_template("product_detail.html",
                                              user=user,
                                              product=product,
                                              in_wishlist=in_wishlist,
-                                             in_cart=in_cart))
+                                             in_cart=in_cart,
+                                             recommendations=recommendations))   # <<< добавляем в шаблон
     response.set_cookie('recent_views', json.dumps(recent), max_age=30*24*3600, path='/', httponly=False)
     return response
-
 
 
 @app.route('/checkout', methods=['POST'])

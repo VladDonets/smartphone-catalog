@@ -348,6 +348,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
   });
 
+  let carouselPositions = {};
+
+function slideCarousel(carouselId, direction) {
+  const carousel = document.getElementById(carouselId);
+  if (!carousel) return;
+  
+  if (!carouselPositions[carouselId]) {
+    carouselPositions[carouselId] = 0;
+  }
+  
+  const cardWidth = 195; // 180px + 15px gap
+  const scrollAmount = cardWidth * 3;
+  
+  carouselPositions[carouselId] += direction * scrollAmount;
+  
+  const maxScroll = carousel.scrollWidth - carousel.clientWidth;
+  carouselPositions[carouselId] = Math.max(0, Math.min(carouselPositions[carouselId], maxScroll));
+  
+  carousel.scrollTo({
+    left: carouselPositions[carouselId],
+    behavior: 'smooth'
+  });
+}
+
+// Инициализация каруселей
+document.querySelectorAll('[id^="recCarousel"]').forEach(carousel => {
+  const id = carousel.id;
+  const num = id.replace('recCarousel', '');
+  document.getElementById('prevRec' + num)?.addEventListener('click', () => slideCarousel(id, -1));
+  document.getElementById('nextRec' + num)?.addEventListener('click', () => slideCarousel(id, 1));
+});
+
   
   
 });

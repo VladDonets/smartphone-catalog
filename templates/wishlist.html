@@ -31,10 +31,50 @@
   {% else %}
     <p>Ваш вішлист порожній.</p>
   {% endif %}
+  <!-- Рекомендации -->
+  <div class="row mt-5">
+    <div class="col-12">
+      <div class="recommendation-block my-4">
+        <h3>Рекомендації для вас</h3>
+        <div class="d-flex align-items-center">
+          <button class="btn btn-outline-secondary btn-sm me-2" id="prevRecWishlist">⟨</button>
+          <div class="recommendation-carousel flex-grow-1 d-flex"
+               id="recCarouselWishlist"
+               style="gap: 15px; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: thin;">
+            {% for rec in recommendations %}
+              <div class="rec-card border rounded p-2 text-center" style="min-width: 180px; flex-shrink: 0;">
+                <a href="{{ url_for('product_detail', product_id=rec.id) }}">
+                  <img src="{{ rec.image_url }}" alt="{{ rec.title }}" style="max-height: 120px; object-fit: contain; width: 100%;">
+                </a>
+                <div class="rec-card-body mt-2">
+                  <h6>
+                    <a href="{{ url_for('product_detail', product_id=rec.id) }}">{{ rec.title }}</a>
+                  </h6>
+                  <div class="price">{{ rec.price }} грн</div>
+                  <div class="rec-actions mt-2 d-flex justify-content-between">
+                    <button class="btn btn-outline-danger btn-sm wishlist-btn" data-product-id="{{ rec.id }}">❤️</button>
+                    <button class="btn btn-outline-primary btn-sm cart-btn" data-product-id="{{ rec.id }}">🛒</button>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          <button class="btn btn-outline-secondary btn-sm ms-2" id="nextRecWishlist">⟩</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Кнопка возврата -->
+  <div class="row mt-4 mb-4">
+    <div class="col-12">
+      <a href="{{ url_for('index') }}" class="btn btn-secondary">← Повернутися до каталогу</a>
+    </div>
+  </div>
 </div>
 
 <!-- Подключаем JavaScript -->
 <script>
+  
 document.addEventListener('click', async function(e) {
     // Обработчик для кнопки корзины
     if (e.target.classList.contains('cart-btn') || e.target.closest('.cart-btn')) {
@@ -110,6 +150,59 @@ document.addEventListener('click', async function(e) {
         alert('❌ Помилка підключення до сервера');
       }
     }
+
+    // Обработчик для кнопки добавления в вишлист
+    if (e.target.classList.contains('wishlist-btn') || e.target.closest('.wishlist-btn')) {
+      e.preventDefault();
+      const btn = e.target.classList.contains('wishlist-btn') ? e.target : e.target.closest('.wishlist-btn');
+      const productId = btn.getAttribute('data-product-id');
+      
+      // Проверяем, не заблокирована ли кнопка
+      if (btn.disabled) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/add-to-wishlist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ product_id: parseInt(productId) })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ ' + data.message);
+          // 🔄 Оновлення сторінки
+          window.location.reload();
+        } else {
+          if (response.status === 401) {
+            alert('❌ Для додавання товарів до вішлисту необхідно авторизуватися!');
+          } else {
+            alert('❌ ' + data.error);
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка при добавлении в вишлист:', error);
+        alert('❌ Помилка підключення до сервера');
+      }
+    }
+
+
+    // Карусель рекомендаций на wishlist
+  const carouselWishlist = document.getElementById('recCarouselWishlist');
+  if (carouselWishlist) {
+    const cardWidth = 200;
+    document.getElementById('prevRecWishlist').addEventListener('click', () => {
+      carouselWishlist.scrollBy({ left: -cardWidth, behavior: 'smooth' });
+    });
+    document.getElementById('nextRecWishlist').addEventListener('click', () => {
+      carouselWishlist.scrollBy({ left: cardWidth, behavior: 'smooth' });
+    });
+  }
+
 });
 </script>
 {% endblock %}
