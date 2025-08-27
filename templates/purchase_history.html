@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Історія покупок - SmartShop{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">📦 Історія моїх покупок</h2>
+  
+  {% if purchases %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Фото</th>
+            <th>Товар</th>
+            <th>Кількість</th>
+            <th>Ціна за од.</th>
+            <th>Сума</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for purchase in purchases %}
+          <tr>
+            <td>{{ purchase.purchase_date.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td>
+              <img src="{{ purchase.image_url }}" alt="{{ purchase.title }}" style="width: 50px; height: 50px; object-fit: contain;">
+            </td>
+            <td>
+              <a href="{{ url_for('product_detail', product_id=purchase.product_id) }}" class="text-decoration-none">
+                {{ purchase.title }}
+              </a>
+            </td>
+            <td>{{ purchase.quantity }}</td>
+            <td>{{ '{:.2f}'.format(purchase.price) }} грн</td>
+            <td><strong>{{ '{:.2f}'.format(purchase.price * purchase.quantity) }} грн</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Підсумкова статистика -->
+    <div class="card mt-4">
+      <div class="card-body">
+        <h5 class="card-title">Статистика покупок</h5>
+        <p class="card-text">
+          Всього замовлень: <strong>{{ purchases|length }}</strong><br>
+          Загальна сума: <strong>{{ '{:.2f}'.format(purchases|sum(attribute='price')) }} грн</strong>
+        </p>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-info" role="alert">
+      <h4 class="alert-heading">Історія покупок порожня</h4>
+      <p>Ви ще не здійснили жодної покупки.</p>
+      <hr>
+      <a href="{{ url_for('index') }}" class="btn btn-primary">Перейти до каталогу</a>
+    </div>
+  {% endif %}
+  
+  <div class="mt-4">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">← Повернутися до каталогу</a>
+  </div>
+</div>
+{% endblock %}

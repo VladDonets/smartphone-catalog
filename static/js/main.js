@@ -1,7 +1,12 @@
 document.addEventListener('DOMContentLoaded', function() {
   // Получаем данные с сервера
-  const serverData = JSON.parse(document.getElementById('server-data').textContent);
-  const loggedInUser = serverData.user;
+  const serverDataElement = document.getElementById('server-data');
+  let loggedInUser = null;
+  
+  if (serverDataElement) {
+    const serverData = JSON.parse(serverDataElement.textContent);
+    loggedInUser = serverData.user;
+  }
   
   console.log('🔍 Данные пользователя:', loggedInUser);
   
@@ -14,19 +19,19 @@ document.addEventListener('DOMContentLoaded', function() {
   function showAuthenticatedUser() {
     console.log('✅ Показываем интерфейс для авторизованного пользователя');
     
-    // Скрываем кнопки входа/регистрации
-    authButtons.classList.remove('auth-visible');
-    authButtons.classList.add('auth-hidden');
+    if (authButtons) {
+      authButtons.classList.remove('auth-visible');
+      authButtons.classList.add('auth-hidden');
+    }
     
-    // Показываем кнопку выхода и приветствие
-    logoutSection.classList.remove('auth-hidden');
-    logoutSection.classList.add('auth-visible');
+    if (logoutSection) {
+      logoutSection.classList.remove('auth-hidden');
+      logoutSection.classList.add('auth-visible');
+    }
     
-    welcomeText.classList.remove('auth-hidden');
-    welcomeText.classList.add('auth-inline');
-    
-    // Устанавливаем текст приветствия
     if (welcomeText) {
+      welcomeText.classList.remove('auth-hidden');
+      welcomeText.classList.add('auth-inline');
       welcomeText.textContent = `Привіт, ${loggedInUser.username}!`;
     }
   }
@@ -35,16 +40,20 @@ document.addEventListener('DOMContentLoaded', function() {
   function showGuestUser() {
     console.log('❌ Показываем интерфейс для неавторизованного пользователя');
     
-    // Показываем кнопки входа/регистрации
-    authButtons.classList.remove('auth-hidden');
-    authButtons.classList.add('auth-visible');
+    if (authButtons) {
+      authButtons.classList.remove('auth-hidden');
+      authButtons.classList.add('auth-visible');
+    }
     
-    // Скрываем кнопку выхода и приветствие
-    logoutSection.classList.remove('auth-visible');
-    logoutSection.classList.add('auth-hidden');
+    if (logoutSection) {
+      logoutSection.classList.remove('auth-visible');
+      logoutSection.classList.add('auth-hidden');
+    }
     
-    welcomeText.classList.remove('auth-inline');
-    welcomeText.classList.add('auth-hidden');
+    if (welcomeText) {
+      welcomeText.classList.remove('auth-inline');
+      welcomeText.classList.add('auth-hidden');
+    }
   }
   
   // Применяем соответствующий интерфейс

@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.title }} - SmartShop{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <!-- Хлебные крошки -->
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Головна</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{{ product.title }}</li>
+    </ol>
+  </nav>
+
+  <div class="row">
+    <!-- Изображение товара -->
+    <div class="col-md-6">
+      <div class="product-image-container">
+        <img src="{{ product.image_url }}" class="img-fluid rounded shadow" alt="{{ product.title }}" style="width: 100%; max-height: 500px; object-fit: contain;">
+      </div>
+    </div>
+
+    <!-- Основная информация -->
+    <div class="col-md-6">
+      <div class="product-info">
+        <h1 class="h3 mb-3">{{ product.title }}</h1>
+        
+        <!-- Цена -->
+        <div class="price-section mb-4">
+          <h2 class="text-success fw-bold mb-0">{{ '{:.0f}'.format(product.price) if product.price == product.price|int else '{:.2f}'.format(product.price) }} грн
+</h2>
+        </div>
+
+        <!-- Краткие характеристики -->
+        <div class="quick-specs mb-4">
+          <h5>Основні характеристики:</h5>
+          <ul class="list-unstyled">
+            {% if product.brand %}
+            <li><strong>Бренд:</strong> {{ product.brand }}</li>
+            {% endif %}
+            {% if product.os %}
+            <li><strong>Операційна система:</strong> {{ product.os }}</li>
+            {% endif %}
+            {% if product.screen_size %}
+            <li><strong>Розмір екрану:</strong> {{ product.screen_size }}</li>
+            {% endif %}
+            {% if product.ram %}
+            <li><strong>Оперативна пам'ять:</strong> {{ product.ram }}</li>
+            {% endif %}
+            {% if product.rom %}
+            <li><strong>Внутрішня пам'ять:</strong> {{ product.rom }}</li>
+            {% endif %}
+          </ul>
+        </div>
+
+        <!-- Кнопки действий -->
+        <div class="action-buttons mb-4">
+          <div class="d-flex gap-3">
+            <!-- Кнопка добавления в корзину -->
+            <button class="btn btn-primary btn-lg flex-grow-1 cart-btn" 
+                    data-product-id="{{ product.id }}"
+                    {% if in_cart %}disabled{% endif %}>
+              {% if in_cart %}
+                🛒 Вже в кошику
+              {% else %}
+                🛒 Додати до кошика
+              {% endif %}
+            </button>
+            
+            <!-- Кнопка вишлиста -->
+            <button class="btn btn-outline-danger btn-lg wishlist-btn" 
+                    data-product-id="{{ product.id }}"
+                    {% if in_wishlist %}disabled{% endif %}>
+              {% if in_wishlist %}
+                ❤️ В вішлисті
+              {% else %}
+                ❤️ До вішлисту
+              {% endif %}
+            </button>
+          </div>
+        </div>
+
+        <!-- Доступность -->
+        <div class="availability mb-3">
+          <span class="badge bg-success fs-6">✅ В наявності</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Описание товара -->
+  {% if product.description %}
+  <div class="row mt-5">
+    <div class="col-12">
+      <div class="product-description">
+        <h3>Опис товару</h3>
+        <div class="card">
+          <div class="card-body">
+            <p class="card-text">{{ product.description }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Детальные характеристики -->
+  <div class="row mt-5">
+    <div class="col-12">
+      <div class="specifications">
+        <h3>Повні характеристики</h3>
+        <div class="card">
+          <div class="card-body">
+            <div class="row">
+              <!-- Основные -->
+              <div class="col-md-6">
+                <h5 class="text-primary">📱 Основні характеристики</h5>
+                <table class="table table-sm">
+                  {% if product.brand %}
+                  <tr><td><strong>Бренд</strong></td><td>{{ product.brand }}</td></tr>
+                  {% endif %}
+                  {% if product.os %}
+                  <tr><td><strong>Операційна система</strong></td><td>{{ product.os }}</td></tr>
+                  {% endif %}
+                  {% if product.release_date %}
+                  <tr><td><strong>Дата виходу</strong></td><td>{{ product.release_date }}</td></tr>
+                  {% endif %}
+                  {% if product.color %}
+                  <tr><td><strong>Колір</strong></td><td>{{ product.color }}</td></tr>
+                  {% endif %}
+                </table>
+
+                <h5 class="text-primary mt-4">📺 Дисплей</h5>
+                <table class="table table-sm">
+                  {% if product.screen_size %}
+                  <tr><td><strong>Розмір екрану</strong></td><td>{{ product.screen_size }}</td></tr>
+                  {% endif %}
+                  {% if product.resolution %}
+                  <tr><td><strong>Роздільна здатність</strong></td><td>{{ product.resolution }}</td></tr>
+                  {% endif %}
+                  {% if product.screen_type %}
+                  <tr><td><strong>Тип екрану</strong></td><td>{{ product.screen_type }}</td></tr>
+                  {% endif %}
+                  {% if product.refresh_rate %}
+                  <tr><td><strong>Частота оновлення</strong></td><td>{{ product.refresh_rate }}</td></tr>
+                  {% endif %}
+                </table>
+
+                <h5 class="text-primary mt-4">⚙️ Продуктивність</h5>
+                <table class="table table-sm">
+                  {% if product.cpu %}
+                  <tr><td><strong>Процесор</strong></td><td>{{ product.cpu }}</td></tr>
+                  {% endif %}
+                  {% if product.gpu %}
+                  <tr><td><strong>Графічний процесор</strong></td><td>{{ product.gpu }}</td></tr>
+                  {% endif %}
+                  {% if product.ram %}
+                  <tr><td><strong>Оперативна пам'ять</strong></td><td>{{ product.ram }}</td></tr>
+                  {% endif %}
+                  {% if product.rom %}
+                  <tr><td><strong>Внутрішня пам'ять</strong></td><td>{{ product.rom }}</td></tr>
+                  {% endif %}
+                  <tr><td><strong>Підтримка microSD</strong></td><td>{{ "Так" if product.microsd_support else "Ні" }}</td></tr>
+                </table>
+              </div>
+
+              <!-- Камера и остальные -->
+              <div class="col-md-6">
+                <h5 class="text-primary">📸 Камера</h5>
+                <table class="table table-sm">
+                  {% if product.main_camera %}
+                  <tr><td><strong>Основна камера</strong></td><td>{{ product.main_camera }}</td></tr>
+                  {% endif %}
+                  {% if product.selfie_camera %}
+                  <tr><td><strong>Фронтальна камера</strong></td><td>{{ product.selfie_camera }}</td></tr>
+                  {% endif %}
+                  <tr><td><strong>Оптична стабілізація</strong></td><td>{{ "Так" if product.optical_stabilization else "Ні" }}</td></tr>
+                  {% if product.video_recording %}
+                  <tr><td><strong>Відеозапис</strong></td><td>{{ product.video_recording }}</td></tr>
+                  {% endif %}
+                </table>
+
+                <h5 class="text-primary mt-4">🔋 Акумулятор</h5>
+                <table class="table table-sm">
+                  {% if product.battery_capacity %}
+                  <tr><td><strong>Ємність акумулятора</strong></td><td>{{ product.battery_capacity }}</td></tr>
+                  {% endif %}
+                  {% if product.fast_charge %}
+                  <tr><td><strong>Швидка зарядка</strong></td><td>{{ product.fast_charge }}</td></tr>
+                  {% endif %}
+                  <tr><td><strong>Бездротова зарядка</strong></td><td>{{ "Так" if product.wireless_charge else "Ні" }}</td></tr>
+                  <tr><td><strong>Зворотна зарядка</strong></td><td>{{ "Так" if product.reverse_charge else "Ні" }}</td></tr>
+                </table>
+
+                <h5 class="text-primary mt-4">🌐 Зв'язок</h5>
+                <table class="table table-sm">
+                  <tr><td><strong>Підтримка 5G</strong></td><td>{{ "Так" if product.support_5g else "Ні" }}</td></tr>
+                  {% if product.wifi_version %}
+                  <tr><td><strong>Wi-Fi</strong></td><td>{{ product.wifi_version }}</td></tr>
+                  {% endif %}
+                  {% if product.bluetooth_version %}
+                  <tr><td><strong>Bluetooth</strong></td><td>{{ product.bluetooth_version }}</td></tr>
+                  {% endif %}
+                  <tr><td><strong>GPS</strong></td><td>{{ "Так" if product.gps else "Ні" }}</td></tr>
+                  <tr><td><strong>NFC</strong></td><td>{{ "Так" if product.nfc else "Ні" }}</td></tr>
+                  <tr><td><strong>ІЧ-порт</strong></td><td>{{ "Так" if product.ir_port else "Ні" }}</td></tr>
+                </table>
+
+                <h5 class="text-primary mt-4">📞 SIM</h5>
+                <table class="table table-sm">
+                  {% if product.sim_type %}
+                  <tr><td><strong>Тип SIM</strong></td><td>{{ product.sim_type }}</td></tr>
+                  {% endif %}
+                  {% if product.sim_count %}
+                  <tr><td><strong>Кількість SIM</strong></td><td>{{ product.sim_count }}</td></tr>
+                  {% endif %}
+                  <tr><td><strong>VoLTE</strong></td><td>{{ "Так" if product.volte_support else "Ні" }}</td></tr>
+                </table>
+
+                <h5 class="text-primary mt-4">🔐 Безпека</h5>
+                <table class="table table-sm">
+                  {% if product.fingerprint_sensor %}
+                  <tr><td><strong>Сканер відбитка</strong></td><td>{{ product.fingerprint_sensor }}</td></tr>
+                  {% endif %}
+                  <tr><td><strong>Розпізнавання обличчя</strong></td><td>{{ "Так" if product.face_unlock else "Ні" }}</td></tr>
+                </table>
+
+                <h5 class="text-primary mt-4">🏗️ Корпус</h5>
+                <table class="table table-sm">
+                  {% if product.body_material %}
+                  <tr><td><strong>Матеріал корпусу</strong></td><td>{{ product.body_material }}</td></tr>
+                  {% endif %}
+                  {% if product.ip_protection %}
+                  <tr><td><strong>IP-захист</strong></td><td>{{ product.ip_protection }}</td></tr>
+                  {% endif %}
+                  {% if product.dimensions %}
+                  <tr><td><strong>Розміри</strong></td><td>{{ product.dimensions }}</td></tr>
+                  {% endif %}
+                  {% if product.weight %}
+                  <tr><td><strong>Вага</strong></td><td>{{ product.weight }}</td></tr>
+                  {% endif %}
+                </table>
+
+                {% if product.accessories or product.interfaces %}
+                <h5 class="text-primary mt-4">📦 Додаткова інформація</h5>
+                <table class="table table-sm">
+                  {% if product.accessories %}
+                  <tr><td><strong>Комплектація</strong></td><td>{{ product.accessories }}</td></tr>
+                  {% endif %}
+                  {% if product.interfaces %}
+                  <tr><td><strong>Інтерфейси</strong></td><td>{{ product.interfaces }}</td></tr>
+                  {% endif %}
+                </table>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Кнопка возврата -->
+  <div class="row mt-4 mb-4">
+    <div class="col-12">
+      <a href="{{ url_for('index') }}" class="btn btn-secondary">← Повернутися до каталогу</a>
+    </div>
+  </div>
+</div>
+
+<!-- JavaScript для кнопок корзины и вишлиста -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  
+  // Обработчик для кнопки добавления в корзину
+  document.addEventListener('click', async function(e) {
+    if (e.target.classList.contains('cart-btn') || e.target.closest('.cart-btn')) {
+      e.preventDefault();
+      const btn = e.target.classList.contains('cart-btn') ? e.target : e.target.closest('.cart-btn');
+      const productId = btn.getAttribute('data-product-id');
+      
+      // Проверяем, не заблокирована ли кнопка
+      if (btn.disabled) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/add-to-cart', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ product_id: parseInt(productId), quantity: 1 })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ ' + data.message);
+          // Меняем состояние кнопки
+          btn.innerHTML = '🛒 Вже в кошику';
+          btn.disabled = true;
+        } else {
+          if (response.status === 401) {
+            alert('❌ Для додавання товарів до кошика необхідно авторизуватися!');
+          } else {
+            alert('❌ ' + data.error);
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка при добавлении в корзину:', error);
+        alert('❌ Помилка підключення до сервера');
+      }
+    }
+
+    // Обработчик для кнопки добавления в вишлист
+    if (e.target.classList.contains('wishlist-btn') || e.target.closest('.wishlist-btn')) {
+      e.preventDefault();
+      const btn = e.target.classList.contains('wishlist-btn') ? e.target : e.target.closest('.wishlist-btn');
+      const productId = btn.getAttribute('data-product-id');
+      
+      // Проверяем, не заблокирована ли кнопка
+      if (btn.disabled) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/add-to-wishlist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ product_id: parseInt(productId) })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ ' + data.message);
+          // Меняем состояние кнопки
+          btn.innerHTML = '❤️ В вішлисті';
+          btn.disabled = true;
+        } else {
+          if (response.status === 401) {
+            alert('❌ Для додавання товарів до вішлисту необхідно авторизуватися!');
+          } else {
+            alert('❌ ' + data.error);
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка при добавлении в вишлист:', error);
+        alert('❌ Помилка підключення до сервера');
+      }
+    }
+  });
+  
+});
+</script>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Рекомендації для вас{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row mb-4">
+    <div class="col-12">
+      <h2 class="text-center">
+        <i class="fas fa-magic"></i> 
+        {% if user %}
+          Персональні рекомендації для {{ user.username }}
+        {% else %}
+          Популярні смартфони
+        {% endif %}
+      </h2>
+      <p class="text-center text-muted">
+        {% if user %}
+          На основі вашої активності та переваг
+        {% else %}
+          Найпопулярніші товари серед користувачів
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  {% if recommendations %}
+  <div class="row g-3">
+    {% for product in recommendations %}
+    <div class="col-lg-3 col-md-4 col-sm-6">
+      <div class="card product-card h-100 recommendation-card">
+        <div class="recommendation-badge">
+          <i class="fas fa-star text-warning"></i>
+        </div>
+        
+        <a href="{{ url_for('product_detail', product_id=product.id) }}" class="text-decoration-none">
+          <img src="{{ product.image_url }}" class="card-img-top" alt="{{ product.title }}" 
+               style="height: 200px; object-fit: contain;">
+        </a>
+        
+        <div class="card-body d-flex flex-column">
+          <h6 class="card-title text-center mb-3">
+            <a href="{{ url_for('product_detail', product_id=product.id) }}" 
+               class="text-decoration-none text-dark">
+              {{ product.title }}
+            </a>
+          </h6>
+          
+          <div class="product-details mb-2">
+            {% if product.brand %}
+            <span class="badge bg-primary me-1">{{ product.brand }}</span>
+            {% endif %}
+            {% if product.os %}
+            <span class="badge bg-secondary me-1">{{ product.os }}</span>
+            {% endif %}
+          </div>
+          
+          <div class="mt-auto">
+            <p class="card-text text-success fw-bold text-center fs-5">
+              {{ '{:.0f}'.format(product.price) if product.price == product.price|int else '{:.2f}'.format(product.price) }} грн
+            </p>
+            
+            <div class="d-flex gap-2 justify-content-center">
+              <button class="btn btn-outline-danger btn-sm wishlist-btn" 
+                      title="Додати до вишлисту" 
+                      data-product-id="{{ product.id }}">
+                ❤️
+              </button>
+              <button class="btn btn-outline-primary btn-sm cart-btn" 
+                      title="Додати до кошика" 
+                      data-product-id="{{ product.id }}">
+                🛒
+              </button>
+              <a href="{{ url_for('product_detail', product_id=product.id) }}" 
+                 class="btn btn-outline-secondary btn-sm" 
+                 title="Детальніше">
+                👁️
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="row">
+    <div class="col-12 text-center">
+      <div class="alert alert-info">
+        <h4>Поки немає рекомендацій</h4>
+        <p>Додайте товари до вишлиста або кошика, переглядайте товари та здійснюйте покупки, щоб отримати персональні рекомендації!</p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Переглянути каталог</a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+.recommendation-card {
+  position: relative;
+  transition: transform 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.recommendation-card:hover {
+  transform: translateY(-5px);
+  border-color: #007bff;
+  box-shadow: 0 8px 16px rgba(0,123,255,0.2);
+}
+
+.recommendation-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  padding: 8px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.product-details {
+  min-height: 30px;
+}
+
+.card-title {
+  min-height: 3em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .col-sm-6 {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+}
+</style>
+{% endblock %}

@@ -85,3 +85,80 @@ form button[type="submit"] {
   border-color: #6c757d;
   color: white;
 }
+
+.product-card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  border: 1px solid #dee2e6;
+}
+
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.product-card img {
+  transition: transform 0.2s ease-in-out;
+}
+
+.product-card:hover img {
+  transform: scale(1.05);
+}
+
+.product-card .card-title a:hover {
+  color: #0d6efd !important;
+}
+
+.product-image-container {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.specifications table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.specifications table td:first-child {
+  width: 40%;
+  background-color: #f8f9fa;
+}
+
+.action-buttons .btn {
+  min-height: 50px;
+  font-size: 16px;
+}
+
+.price-section {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  padding: 15px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.price-section h2 {
+  color: white !important;
+  margin: 0;
+  font-size: 2rem;
+}
+
+.quick-specs {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.availability .badge {
+  padding: 8px 16px;
+}
+
+@media (max-width: 768px) {
+  .action-buttons .d-flex {
+    flex-direction: column;
+  }
+  
+  .action-buttons .btn {
+    margin-bottom: 10px;
+  }
+}
