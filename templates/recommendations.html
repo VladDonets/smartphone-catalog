@@ -71,11 +71,6 @@
                       data-product-id="{{ product.id }}">
                 🛒
               </button>
-              <a href="{{ url_for('product_detail', product_id=product.id) }}" 
-                 class="btn btn-outline-secondary btn-sm" 
-                 title="Детальніше">
-                👁️
-              </a>
             </div>
           </div>
         </div>
@@ -99,8 +94,8 @@
 <style>
 .recommendation-card {
   position: relative;
-  transition: transform 0.2s ease;
   border: 2px solid transparent;
+  overflow: hidden;
 }
 
 .recommendation-card:hover {
@@ -138,4 +133,77 @@
   }
 }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Инициализация обработчиков для страницы рекомендаций');
+    
+    document.addEventListener('click', async function(e) {
+        // Обработчик для кнопки вишлиста
+        if (e.target.classList.contains('wishlist-btn') || e.target.closest('.wishlist-btn')) {
+            e.preventDefault();
+            const btn = e.target.classList.contains('wishlist-btn') ? e.target : e.target.closest('.wishlist-btn');
+            const productId = btn.getAttribute('data-product-id');
+            
+            try {
+                const response = await fetch('/add-to-wishlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_id: parseInt(productId) })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    btn.style.backgroundColor = '#dc3545';
+                    btn.style.color = 'white';
+                } else {
+                    if (response.status === 401) {
+                        alert('❌ Для додавання товарів до вишлисту необхідно авторизуватися!');
+                    } else {
+                        alert('❌ ' + data.error);
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка при добавлении в вишлист:', error);
+                alert('❌ Помилка підключення до сервера');
+            }
+        }
+        
+        // Обработчик для кнопки корзины
+        if (e.target.classList.contains('cart-btn') || e.target.closest('.cart-btn')) {
+            e.preventDefault();
+            const btn = e.target.classList.contains('cart-btn') ? e.target : e.target.closest('.cart-btn');
+            const productId = btn.getAttribute('data-product-id');
+            
+            try {
+                const response = await fetch('/add-to-cart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_id: parseInt(productId), quantity: 1 })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    btn.style.backgroundColor = '#0d6efd';
+                    btn.style.color = 'white';
+                } else {
+                    if (response.status === 401) {
+                        alert('❌ Для додавання товарів до кошика необхідно авторизуватися!');
+                    } else {
+                        alert('❌ ' + data.error);
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка при добавлении в корзину:', error);
+                alert('❌ Помилка підключення до сервера');
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
+

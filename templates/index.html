@@ -78,7 +78,6 @@
               <div class="mt-2 d-flex gap-2">
                 <button class="btn btn-outline-danger btn-sm wishlist-btn" title="Додати до вишлисту" data-product-id="{{ product.id }}">❤️</button>
                 <button class="btn btn-outline-primary btn-sm cart-btn" title="Додати до кошика" data-product-id="{{ product.id }}">🛒</button>
-                <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn btn-outline-secondary btn-sm" title="Детальніше">👁️</a>
               </div>
             </div>
           </div>
@@ -294,7 +293,7 @@
 
         <div class="mb-3">
           <label for="fingerprintFilter" class="form-label">Сканер відбитка</label>
-          <select id="fingerprintFilter" class="form-select filter-select">
+          <select id="fingerprintSensorFilter" class="form-select filter-select">
             <option value="">Будь-який</option>
             {% for fingerprint_sensor in filter_options.fingerprint_sensor %}
             <option value="{{ fingerprint_sensor }}" {{ 'selected' if request.args.get('fingerprint_sensor') == fingerprint_sensor }}>{{ fingerprint_sensor }}</option>

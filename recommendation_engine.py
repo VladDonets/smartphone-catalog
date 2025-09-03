@@ -69,7 +69,7 @@ class RecommendationEngine:
             'colors': defaultdict(int)
         }
 
-        # ---------- Покупки ----------
+        # покупки
         try:
             purchased = json.loads(user_data.get('purchased') or '[]')
         except json.JSONDecodeError:
@@ -95,7 +95,7 @@ class RecommendationEngine:
                 weight = self.weights['purchase'] * qty_by_id.get(product['id'], 1)
                 self._update_preferences(preferences, product, weight)
 
-        # ---------- Корзина ----------
+        # кошик
         try:
             cart = json.loads(user_data.get('cart') or '{}')
         except json.JSONDecodeError:
@@ -113,7 +113,7 @@ class RecommendationEngine:
                 weight = self.weights['cart'] * q
                 self._update_preferences(preferences, product, weight)
 
-        # ---------- Вишлист ----------
+        # вішлист
         try:
             wishlist_ids = json.loads(user_data.get('wishlist') or '[]')
         except json.JSONDecodeError:
@@ -128,7 +128,7 @@ class RecommendationEngine:
             for product in cursor.fetchall():
                 self._update_preferences(preferences, product, self.weights['wishlist'])
 
-        # ---------- История просмотров ----------
+        # історія переглядів
         try:
             view_history = json.loads(user_data.get('view_history') or '[]')
         except json.JSONDecodeError:
@@ -148,7 +148,7 @@ class RecommendationEngine:
             for product in cursor.fetchall():
                 self._update_preferences(preferences, product, self.weights['view'])
 
-        # ---------- Поиск ----------
+        # пошук
         try:
             search_history = json.loads(user_data.get('search_history') or '[]')
         except json.JSONDecodeError:
@@ -164,7 +164,7 @@ class RecommendationEngine:
                     if brand and brand.lower() in ql:
                         preferences['brands'][brand] += self.weights['search']
 
-        # ---------- Фильтры ----------
+        # фільтри
         try:
             filter_history = json.loads(user_data.get('filter_history') or '[]')
         except json.JSONDecodeError:
@@ -247,7 +247,7 @@ class RecommendationEngine:
         if exclude_ids:
             exclude_condition = f"AND id NOT IN ({','.join(map(str, exclude_ids))})"
 
-        # бренды
+        # бренд
         top_brands = sorted(preferences['brands'].items(), key=lambda x: x[1], reverse=True)[:3]
         for brand, _ in top_brands:
             cursor.execute(f"""
@@ -271,7 +271,7 @@ class RecommendationEngine:
             """, (os,))
             recommendations.extend(cursor.fetchall())
 
-        # Цена
+        # ціна
         if preferences['price_ranges']:
             avg_price = sum(preferences['price_ranges']) / len(preferences['price_ranges'])
             min_price = avg_price * 0.7
@@ -285,7 +285,7 @@ class RecommendationEngine:
             """, (min_price, max_price))
             recommendations.extend(cursor.fetchall())
 
-        # Особенности
+
         top_features = sorted(preferences['features'].items(), key=lambda x: x[1], reverse=True)[:3]
         for feature, _ in top_features:
             cursor.execute(f"""
@@ -297,7 +297,7 @@ class RecommendationEngine:
             """)
             recommendations.extend(cursor.fetchall())
 
-        # Убираем дубли
+        # прибрати повторення
         seen_ids = set()
         unique_recommendations = []
         for product in recommendations:

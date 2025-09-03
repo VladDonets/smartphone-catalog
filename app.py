@@ -1,9 +1,10 @@
-from flask import Flask, jsonify, render_template, session, request, redirect, make_response
+from flask import Blueprint, Flask, jsonify, render_template, session, request, redirect, make_response
 import json
 import datetime
 from db import get_connection
 from routes.auth import auth_bp
 from routes.users import users_bp
+from routes.chat import chat_bp
 from recommendation_engine import RecommendationEngine
 
 app = Flask(__name__)
@@ -11,28 +12,8 @@ app.secret_key = 'your-secret-key'
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(users_bp)
+app.register_blueprint(chat_bp)
 
-
-def get_filter_options():
-    """Отримуємо унікальні значення для фільтрів з БД"""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    filter_options = {}
-    
-    # Отримуємо унікальні значення для кожного поля
-    fields_to_check = [
-        'brand', 'os', 'screen_type', 'refresh_rate', 'ram', 'rom',
-        'video_recording', 'wifi_version', 'bluetooth_version', 'sim_type',
-        'sim_count', 'fingerprint_sensor', 'body_material', 'ip_protection', 'color'
-    ]
-    
-    for field in fields_to_check:
-        cursor.execute(f"SELECT DISTINCT {field} FROM products WHERE {field} IS NOT NULL AND {field} != '' ORDER BY {field}")
-        filter_options[field] = [row[field] for row in cursor.fetchall()]
-    
-    conn.close()
-    return filter_options
 
 def save_search_history(user_id, search_query):
     """Зберігає історію пошуку користувача в users.search_history"""
@@ -128,19 +109,21 @@ def extract_active_filters(args):
     return filters if filters else None
 
 
+# В app.py замінити функцію index() та відповідні частини:
+
 @app.route("/")
 def index():
     user = None
     if 'user_id' in session:
         user = {'username': session.get('username')}
 
-    # Получаем параметры сортировки и поиска
+    # Параметри сортування та пошуку
     sort = request.args.get('sort', '')
     search_query = request.args.get('q', '').strip()
     if search_query and 'user_id' in session:
         save_search_history(session['user_id'], search_query)
 
-    # Фильтры из параметров GET
+    # Фільтри з параметрів GET (відповідають БД)
     brand = request.args.get('brand', '')
     os_ = request.args.get('os', '')
     screen_type = request.args.get('screen_type', '')
@@ -157,7 +140,7 @@ def index():
     ip_protection = request.args.get('ip_protection', '')
     color = request.args.get('color', '')
 
-    # Boolean фильтры (checkbox)
+    # Boolean фільтри (tinyint(1) в БД)
     microsd_support = request.args.get('microsd_support', '')
     optical_stabilization = request.args.get('optical_stabilization', '')
     wireless_charge = request.args.get('wireless_charge', '')
@@ -169,7 +152,7 @@ def index():
     volte_support = request.args.get('volte_support', '')
     face_unlock = request.args.get('face_unlock', '')
 
-    # Формируем SQL для сортировки
+    # SQL для сортування
     order_by = ""
     if sort == 'title_asc':
         order_by = "ORDER BY title ASC"
@@ -180,7 +163,7 @@ def index():
     elif sort == 'price_desc':
         order_by = "ORDER BY price DESC"
 
-    # Формируем условия WHERE
+    # WHERE умови
     where_clauses = []
     params = {}
 
@@ -188,74 +171,34 @@ def index():
         where_clauses.append("title LIKE %(search)s")
         params['search'] = f"%{search_query}%"
 
-    # Текстовые фильтры
-    if brand:
-        where_clauses.append("brand = %(brand)s")
-        params['brand'] = brand
-    if os_:
-        where_clauses.append("os = %(os)s")
-        params['os'] = os_
-    if screen_type:
-        where_clauses.append("screen_type = %(screen_type)s")
-        params['screen_type'] = screen_type
-    if refresh_rate:
-        where_clauses.append("refresh_rate = %(refresh_rate)s")
-        params['refresh_rate'] = refresh_rate
-    if ram:
-        where_clauses.append("ram = %(ram)s")
-        params['ram'] = ram
-    if rom:
-        where_clauses.append("rom = %(rom)s")
-        params['rom'] = rom
-    if video_recording:
-        where_clauses.append("video_recording = %(video_recording)s")
-        params['video_recording'] = video_recording
-    if wifi_version:
-        where_clauses.append("wifi_version = %(wifi_version)s")
-        params['wifi_version'] = wifi_version
-    if bluetooth_version:
-        where_clauses.append("bluetooth_version = %(bluetooth_version)s")
-        params['bluetooth_version'] = bluetooth_version
-    if sim_type:
-        where_clauses.append("sim_type = %(sim_type)s")
-        params['sim_type'] = sim_type
+    # Текстові фільтри
+    text_filters = {
+        'brand': brand, 'os': os_, 'screen_type': screen_type, 'refresh_rate': refresh_rate,
+        'ram': ram, 'rom': rom, 'video_recording': video_recording, 'wifi_version': wifi_version,
+        'bluetooth_version': bluetooth_version, 'sim_type': sim_type, 'fingerprint_sensor': fingerprint_sensor,
+        'body_material': body_material, 'ip_protection': ip_protection, 'color': color
+    }
+    
+    for field, value in text_filters.items():
+        if value:
+            where_clauses.append(f"{field} = %({field})s")
+            params[field] = value
+    
+    # Числовий фільтр sim_count
     if sim_count:
         where_clauses.append("sim_count = %(sim_count)s")
-        params['sim_count'] = sim_count
-    if fingerprint_sensor:
-        where_clauses.append("fingerprint_sensor = %(fingerprint_sensor)s")
-        params['fingerprint_sensor'] = fingerprint_sensor
-    if body_material:
-        where_clauses.append("body_material = %(body_material)s")
-        params['body_material'] = body_material
-    if ip_protection:
-        where_clauses.append("ip_protection = %(ip_protection)s")
-        params['ip_protection'] = ip_protection
-    if color:
-        where_clauses.append("color = %(color)s")
-        params['color'] = color
+        params['sim_count'] = int(sim_count)
 
-    # Boolean фильтры (checkbox)
-    if microsd_support == 'on':
-        where_clauses.append("microsd_support = 1")
-    if optical_stabilization == 'on':
-        where_clauses.append("optical_stabilization = 1")
-    if wireless_charge == 'on':
-        where_clauses.append("wireless_charge = 1")
-    if reverse_charge == 'on':
-        where_clauses.append("reverse_charge = 1")
-    if support_5g == 'on':
-        where_clauses.append("support_5g = 1")
-    if gps == 'on':
-        where_clauses.append("gps = 1")
-    if nfc == 'on':
-        where_clauses.append("nfc = 1")
-    if ir_port == 'on':
-        where_clauses.append("ir_port = 1")
-    if volte_support == 'on':
-        where_clauses.append("volte_support = 1")
-    if face_unlock == 'on':
-        where_clauses.append("face_unlock = 1")
+    # Boolean фільтри (1 = True в БД)
+    boolean_filters = {
+        'microsd_support': microsd_support, 'optical_stabilization': optical_stabilization,
+        'wireless_charge': wireless_charge, 'reverse_charge': reverse_charge, 'support_5g': support_5g,
+        'gps': gps, 'nfc': nfc, 'ir_port': ir_port, 'volte_support': volte_support, 'face_unlock': face_unlock
+    }
+    
+    for field, value in boolean_filters.items():
+        if value == 'on':
+            where_clauses.append(f"{field} = 1")
 
     where_sql = ''
     if where_clauses:
@@ -273,7 +216,7 @@ def index():
     cursor.execute(query, params)
     products = cursor.fetchall()
     
-    # НОВОЕ: Получаем рекомендации для каруселей
+    # Рекомендації
     rec_engine = RecommendationEngine()
     recent_views = []
     cookie_val = request.cookies.get('recent_views')
@@ -302,12 +245,39 @@ def index():
         if active_filters:
             save_filter_history(session['user_id'], active_filters)
 
-    # НОВОЕ: Передаем рекомендации в шаблон
     return render_template("index.html", 
                          user=user, 
                          products=products, 
                          filter_options=filter_options,
                          recommendations=recommendations)
+
+
+
+def get_filter_options():
+    """Отримуємо унікальні значення для фільтрів з БД"""
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    filter_options = {}
+    
+    # Поля для фільтрації (точно як в БД)
+    fields_to_check = [
+        'brand', 'os', 'screen_type', 'refresh_rate', 'ram', 'rom',
+        'video_recording', 'wifi_version', 'bluetooth_version', 'sim_type',
+        'sim_count', 'fingerprint_sensor', 'body_material', 'ip_protection', 'color'
+    ]
+    
+    for field in fields_to_check:
+        # Для sim_count використовуємо DISTINCT з CAST до VARCHAR для сортування
+        if field == 'sim_count':
+            cursor.execute(f"SELECT DISTINCT {field} FROM products WHERE {field} IS NOT NULL ORDER BY {field}")
+        else:
+            cursor.execute(f"SELECT DISTINCT {field} FROM products WHERE {field} IS NOT NULL AND {field} != '' ORDER BY {field}")
+        filter_options[field] = [row[field] for row in cursor.fetchall()]
+    
+    conn.close()
+    return filter_options
+
 
 @app.route('/add-product', methods=['GET', 'POST'])
 def add_product():
