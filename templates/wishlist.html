@@ -43,17 +43,17 @@
                style="gap: 15px; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: thin;">
             {% for rec in recommendations %}
               <div class="rec-card border rounded p-2 text-center" style="min-width: 180px; flex-shrink: 0;">
-                <a href="{{ url_for('product_detail', product_id=rec.id) }}">
+                <a href="{{ url_for('product_detail', product_id=rec.id) }}" data-product-id="{{ rec.id }}">
                   <img src="{{ rec.image_url }}" alt="{{ rec.title }}" style="max-height: 120px; object-fit: contain; width: 100%;">
                 </a>
                 <div class="rec-card-body mt-2">
                   <h6>
-                    <a href="{{ url_for('product_detail', product_id=rec.id) }}">{{ rec.title }}</a>
+                    <a href="{{ url_for('product_detail', product_id=rec.id) }}" data-product-id="{{ rec.id }}">{{ rec.title }}</a>
                   </h6>
                   <div class="price">{{ rec.price }} грн</div>
                   <div class="rec-actions mt-2 d-flex justify-content-between">
-                    <button class="btn btn-outline-danger btn-sm wishlist-btn" data-product-id="{{ rec.id }}">❤️</button>
-                    <button class="btn btn-outline-primary btn-sm cart-btn" data-product-id="{{ rec.id }}">🛒</button>
+                    <button class="btn btn-outline-danger btn-sm wishlist-btn" data-product-id="{{ rec.id }}" data-source="recCarouselWishlist">❤️</button>
+                    <button class="btn btn-outline-primary btn-sm cart-btn" data-product-id="{{ rec.id }}" data-source="recCarouselWishlist">🛒</button>
                   </div>
                 </div>
               </div>
@@ -74,7 +74,76 @@
 
 <!-- Подключаем JavaScript -->
 <script>
-  
+document.addEventListener('DOMContentLoaded', function() {
+  // Данні користувача
+  const serverDataElement = document.getElementById('server-data');
+  let loggedInUser = null;
+  if (serverDataElement) {
+    const serverData = JSON.parse(serverDataElement.textContent);
+    loggedInUser = serverData.user;
+  }
+
+  async function logRecommendationEvent(productId, eventType, source = "wishlist_page") {
+    if (!loggedInUser || !loggedInUser.id) return;
+    try {
+      await fetch("/log_recommendation_event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: loggedInUser.id,
+          product_id: productId,
+          event_type: eventType,
+          source: source
+        })
+      });
+      console.log(`📌 Wishlist log: ${eventType} → ${productId}`);
+    } catch (err) {
+      console.error("❌ Wishlist log error:", err);
+    }
+  }
+
+  // Клік по рекомендаціям (посилання на товар)
+  document.addEventListener('click', async function(e) {
+    const productLink = e.target.closest('.recommendation-block a[href*="/product/"]');
+    if (productLink) {
+      const productId = parseInt(productLink.getAttribute('data-product-id'));
+      if (productId && loggedInUser) {
+        await logRecommendationEvent(productId, "clicked", "wishlist_page");
+      }
+    }
+  });
+
+  // Клік по ❤️ у блоці рекомендацій
+  document.addEventListener('click', async function(e) {
+    if (e.target.closest('.recommendation-block .wishlist-btn')) {
+      const btn = e.target.closest('.wishlist-btn');
+      const productId = parseInt(btn.getAttribute('data-product-id'));
+      await logRecommendationEvent(productId, "wishlisted", "wishlist_page");
+    }
+  });
+
+  // Клік по 🛒 у блоці рекомендацій
+  document.addEventListener('click', async function(e) {
+    if (e.target.closest('.recommendation-block .cart-btn')) {
+      const btn = e.target.closest('.cart-btn');
+      const productId = parseInt(btn.getAttribute('data-product-id'));
+      await logRecommendationEvent(productId, "added_to_cart", "wishlist_page");
+    }
+  });
+
+  // Карусель рекомендацій на wishlist
+  const carouselWishlist = document.getElementById('recCarouselWishlist');
+  if (carouselWishlist) {
+    const cardWidth = 200;
+    document.getElementById('prevRecWishlist').addEventListener('click', () => {
+      carouselWishlist.scrollBy({ left: -cardWidth, behavior: 'smooth' });
+    });
+    document.getElementById('nextRecWishlist').addEventListener('click', () => {
+      carouselWishlist.scrollBy({ left: cardWidth, behavior: 'smooth' });
+    });
+  }
+});
+
 document.addEventListener('click', async function(e) {
     // Обработчик для кнопки корзины
     if (e.target.classList.contains('cart-btn') || e.target.closest('.cart-btn')) {
@@ -110,7 +179,7 @@ document.addEventListener('click', async function(e) {
       }
     }
 
-    // Обработчик для кнопки "Прибрати з вішлиста"
+    // Обработчик для кнопки "Прибрати з вішліста"
     if (e.target.classList.contains('remove-wishlist-btn') || e.target.closest('.remove-wishlist-btn')) {
       e.preventDefault();
       const btn = e.target.classList.contains('remove-wishlist-btn') ? e.target : e.target.closest('.remove-wishlist-btn');
@@ -146,7 +215,7 @@ document.addEventListener('click', async function(e) {
           }
         }
       } catch (error) {
-        console.error('Помилка видалення з вішлиста:', error);
+        console.error('Помилка видалення з вішліста:', error);
         alert('❌ Помилка підключення до сервера');
       }
     }
@@ -179,7 +248,7 @@ document.addEventListener('click', async function(e) {
           window.location.reload();
         } else {
           if (response.status === 401) {
-            alert('❌ Для додавання товарів до вішлисту необхідно авторизуватися!');
+            alert('❌ Для додавання товарів до вішліста необхідно авторизуватися!');
           } else {
             alert('❌ ' + data.error);
           }
@@ -189,20 +258,6 @@ document.addEventListener('click', async function(e) {
         alert('❌ Помилка підключення до сервера');
       }
     }
-
-
-    // Карусель рекомендаций на wishlist
-  const carouselWishlist = document.getElementById('recCarouselWishlist');
-  if (carouselWishlist) {
-    const cardWidth = 200;
-    document.getElementById('prevRecWishlist').addEventListener('click', () => {
-      carouselWishlist.scrollBy({ left: -cardWidth, behavior: 'smooth' });
-    });
-    document.getElementById('nextRecWishlist').addEventListener('click', () => {
-      carouselWishlist.scrollBy({ left: cardWidth, behavior: 'smooth' });
-    });
-  }
-
 });
 </script>
 {% endblock %}

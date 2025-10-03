@@ -147,12 +147,12 @@
                style="gap: 15px; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: thin;">
             {% for rec in recommendations %}
               <div class="rec-card border rounded p-2 text-center" style="min-width: 180px; flex-shrink: 0;">
-                <a href="{{ url_for('product_detail', product_id=rec.id) }}">
+                <a href="{{ url_for('product_detail', product_id=rec.id) }}" data-product-id="{{ rec.id }}">
                   <img src="{{ rec.image_url }}" alt="{{ rec.title }}" style="max-height: 120px; object-fit: contain; width: 100%;">
                 </a>
                 <div class="rec-card-body mt-2">
                   <h6>
-                    <a href="{{ url_for('product_detail', product_id=rec.id) }}">{{ rec.title }}</a>
+                    <a href="{{ url_for('product_detail', product_id=rec.id) }}" data-product-id="{{ rec.id }}">{{ rec.title }}</a>
                   </h6>
                   <div class="price">{{ rec.price }} грн</div>
                   <div class="rec-actions mt-2 d-flex justify-content-between">
@@ -325,7 +325,77 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // Добавление в корзину из рекомендаций
+  // Карусель рекомендаций
+const carouselCart = document.getElementById('recCarouselCart');
+if (carouselCart) {
+  const cardWidth = 200;
+  document.getElementById('prevRecCart').addEventListener('click', () => {
+    carouselCart.scrollBy({ left: -cardWidth, behavior: 'smooth' });
+  });
+  document.getElementById('nextRecCart').addEventListener('click', () => {
+    carouselCart.scrollBy({ left: cardWidth, behavior: 'smooth' });
+  });
+}
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  const serverDataElement = document.getElementById('server-data');
+  let loggedInUser = null;
+  if (serverDataElement) {
+    const serverData = JSON.parse(serverDataElement.textContent);
+    loggedInUser = serverData.user;
+  }
+
+  async function logRecommendationEvent(productId, eventType, source = "cart_page") {
+    if (!loggedInUser || !loggedInUser.id) return;
+    try {
+      await fetch("/log_recommendation_event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: loggedInUser.id,
+          product_id: productId,
+          event_type: eventType,
+          source: source
+        })
+      });
+      console.log(`📌 Cart log: ${eventType} → ${productId}`);
+    } catch (err) {
+      console.error("❌ Cart log error:", err);
+    }
+  }
+
+  // Клік по рекомендаціям (посилання на товар)
+  document.addEventListener('click', async function(e) {
+    const productLink = e.target.closest('.recommendation-block a[href*="/product/"]');
+    if (productLink) {
+      const productId = parseInt(productLink.getAttribute('data-product-id'));
+      if (productId && loggedInUser) {
+        await logRecommendationEvent(productId, "clicked", "cart_page");
+      }
+    }
+  });
+
+  // Клік по ❤️ у рекомендаціях
+  document.addEventListener('click', async function(e) {
+    if (e.target.closest('.recommendation-block .wishlist-btn')) {
+      const btn = e.target.closest('.wishlist-btn');
+      const productId = parseInt(btn.getAttribute('data-product-id'));
+      await logRecommendationEvent(productId, "wishlisted", "cart_page");
+    }
+  });
+
+  // Клік по 🛒 у рекомендаціях
+  document.addEventListener('click', async function(e) {
+    if (e.target.closest('.recommendation-block .cart-btn')) {
+      const btn = e.target.closest('.cart-btn');
+      const productId = parseInt(btn.getAttribute('data-product-id'));
+      await logRecommendationEvent(productId, "added_to_cart", "cart_page");
+    }
+  });
+});
+
+// Додавання в корзину з рекомендацій
 document.addEventListener('click', async function(e) {
   if (e.target.classList.contains('cart-btn') || e.target.closest('.cart-btn')) {
     e.preventDefault();
@@ -356,21 +426,6 @@ document.addEventListener('click', async function(e) {
       alert('❌ Помилка підключення до сервера');
     }
   }
-});
-
-// Карусель рекомендаций
-const carouselCart = document.getElementById('recCarouselCart');
-if (carouselCart) {
-  const cardWidth = 200;
-  document.getElementById('prevRecCart').addEventListener('click', () => {
-    carouselCart.scrollBy({ left: -cardWidth, behavior: 'smooth' });
-  });
-  document.getElementById('nextRecCart').addEventListener('click', () => {
-    carouselCart.scrollBy({ left: cardWidth, behavior: 'smooth' });
-  });
-}
-
-
 });
 </script>
 {% endblock %}

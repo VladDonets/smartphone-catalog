@@ -15,9 +15,9 @@ class RecommendationEngine:
         }
 
     def get_user_recommendations(self, user_id, limit=10, exclude_ids=None, recent_views=None):
-        """
-        Получаем персонализированные рекомендации для пользователя
-        """
+        
+        # отримуємо рекомендації
+
         if exclude_ids is None:
             exclude_ids = []
         if recent_views is None:
@@ -48,15 +48,17 @@ class RecommendationEngine:
                 )
                 recommendations.extend(popular)
 
+            for rec in recommendations[:limit]:
+                self.log_event(user_id, rec['id'], "shown")
+
             return recommendations[:limit]
         finally:
             conn.close()
 
     def _analyze_user_preferences(self, user_id, user_data, cursor, recent_views=None):
-        """
-        Анализируем предпочтения пользователя на основе JSON-полей в users
-        и списка recent_views из cookie.
-        """
+        
+        #аналізування паодібностей
+
         if recent_views is None:
             recent_views = []
 
@@ -399,5 +401,17 @@ class RecommendationEngine:
             conn.close()
 
     def save_current_session_filters(self, user_id, filters):
-        """no-op: фильтры сохраняются в users.filter_history"""
+        """no-op: фильтры зберігаються в users.filter_history"""
         return
+
+    def log_event(self, user_id, product_id, event_type, source=None):
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO recommendation_logs (user_id, product_id, event_type, source)
+                VALUES (%s, %s, %s, %s)
+            """, (user_id, product_id, event_type, source))
+            conn.commit()
+        finally:
+            conn.close()

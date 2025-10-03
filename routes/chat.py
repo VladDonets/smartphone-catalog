@@ -6,8 +6,8 @@ from db import get_connection
 chat_bp = Blueprint('chat', __name__)
 
 # Налаштування Gemini
-genai.configure(api_key="AIzaSyDYTlA9IPnGIgxQ5cUE6QtdI5R9ceE1iMs")  # ваш ключ
-model = genai.GenerativeModel("gemini-1.5-flash")
+genai.configure(api_key="AIzaSyCzD6I6Zor7JHeCm7Y3mnz6Cehh3baJA-E")  # ваш ключ
+model = genai.GenerativeModel("gemini-2.0-flash-lite")
 
 from decimal import Decimal
 
@@ -154,4 +154,3 @@ def search_products():
     conn.close()
     
     return jsonify({'products': products})
-

@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}{{ product.title }} - SmartShop{% endblock %}
@@ -272,17 +273,17 @@
              style="gap: 15px; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: thin;">
           {% for rec in recommendations %}
             <div class="rec-card border rounded p-2 text-center" style="min-width: 180px; flex-shrink: 0;">
-              <a href="{{ url_for('product_detail', product_id=rec.id) }}">
+              <a href="{{ url_for('product_detail', product_id=rec.id) }}" data-product-id="{{ rec.id }}">
                 <img src="{{ rec.image_url }}" alt="{{ rec.title }}" style="max-height: 120px; object-fit: contain; width: 100%;">
               </a>
               <div class="rec-card-body mt-2">
                 <h6>
-                  <a href="{{ url_for('product_detail', product_id=rec.id) }}">{{ rec.title }}</a>
+                  <a href="{{ url_for('product_detail', product_id=rec.id) }}" data-product-id="{{ rec.id }}">{{ rec.title }}</a>
                 </h6>
                 <div class="price">{{ rec.price }} грн</div>
                 <div class="rec-actions mt-2 d-flex justify-content-between">
-                  <button class="btn btn-outline-danger btn-sm wishlist-btn" data-product-id="{{ rec.id }}">❤️</button>
-                  <button class="btn btn-outline-primary btn-sm cart-btn" data-product-id="{{ rec.id }}">🛒</button>
+                  <button class="btn btn-outline-danger btn-sm wishlist-btn" data-product-id="{{ rec.id }}" data-source="recCarouselDetail">❤️</button>
+                  <button class="btn btn-outline-primary btn-sm cart-btn" data-product-id="{{ rec.id }}" data-source="recCarouselDetail">🛒</button>
                 </div>
               </div>
             </div>
@@ -306,8 +307,63 @@
 <!-- JavaScript для кнопок корзины и вишлиста -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  
-  // Обработчик для кнопки добавления в корзину
+  // Данні користувача
+  const serverDataElement = document.getElementById('server-data');
+  let loggedInUser = null;
+  if (serverDataElement) {
+    const serverData = JSON.parse(serverDataElement.textContent);
+    loggedInUser = serverData.user;
+  }
+
+  async function logRecommendationEvent(productId, eventType, source = "product_page") {
+    if (!loggedInUser || !loggedInUser.id) return;
+    try {
+      await fetch("/log_recommendation_event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: loggedInUser.id,
+          product_id: productId,
+          event_type: eventType,
+          source: source
+        })
+      });
+      console.log(`📌 Product page log: ${eventType} → ${productId}`);
+    } catch (err) {
+      console.error("❌ Product page log error:", err);
+    }
+  }
+
+  // Клік по рекомендаціям (посилання на товар)
+  document.addEventListener('click', async function(e) {
+    const productLink = e.target.closest('.recommendation-block a[href*="/product/"]');
+    if (productLink) {
+      const productId = parseInt(productLink.getAttribute('data-product-id'));
+      if (productId && loggedInUser) {
+        await logRecommendationEvent(productId, "clicked", "product_page");
+      }
+    }
+  });
+
+  // Клік по ❤️ у блоці рекомендацій
+  document.addEventListener('click', async function(e) {
+    if (e.target.closest('.recommendation-block .wishlist-btn')) {
+      const btn = e.target.closest('.wishlist-btn');
+      const productId = parseInt(btn.getAttribute('data-product-id'));
+      await logRecommendationEvent(productId, "wishlisted", "product_page");
+    }
+  });
+
+  // Клік по 🛒 у блоці рекомендацій
+  document.addEventListener('click', async function(e) {
+    if (e.target.closest('.recommendation-block .cart-btn')) {
+      const btn = e.target.closest('.cart-btn');
+      const productId = parseInt(btn.getAttribute('data-product-id'));
+      await logRecommendationEvent(productId, "added_to_cart", "product_page");
+    }
+  });
+
+  // Обработчик для кнопки добавления в корзину (основных кнопок на странице)
   document.addEventListener('click', async function(e) {
     if (e.target.classList.contains('cart-btn') || e.target.closest('.cart-btn')) {
       e.preventDefault();
@@ -348,7 +404,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    // Обработчик для кнопки добавления в вишлист
+    // Обработчик для кнопки добавления в вишлист (основных кнопок на странице)
     if (e.target.classList.contains('wishlist-btn') || e.target.closest('.wishlist-btn')) {
       e.preventDefault();
       const btn = e.target.classList.contains('wishlist-btn') ? e.target : e.target.closest('.wishlist-btn');

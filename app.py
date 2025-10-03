@@ -29,7 +29,6 @@ def save_search_history(user_id, search_query):
     except:
         history = []
 
-    # Добавляем новый поиск
     history.append({
         "query": search_query,
         "timestamp": datetime.datetime.now().isoformat()
@@ -109,13 +108,15 @@ def extract_active_filters(args):
     return filters if filters else None
 
 
-# В app.py замінити функцію index() та відповідні частини:
-
 @app.route("/")
 def index():
     user = None
+    user = None
     if 'user_id' in session:
-        user = {'username': session.get('username')}
+        user = {
+            'username': session.get('username'),
+            'id': session.get('user_id') 
+        }
 
     # Параметри сортування та пошуку
     sort = request.args.get('sort', '')
@@ -123,7 +124,7 @@ def index():
     if search_query and 'user_id' in session:
         save_search_history(session['user_id'], search_query)
 
-    # Фільтри з параметрів GET (відповідають БД)
+    # Фільтри з параметрів GET
     brand = request.args.get('brand', '')
     os_ = request.args.get('os', '')
     screen_type = request.args.get('screen_type', '')
@@ -140,7 +141,7 @@ def index():
     ip_protection = request.args.get('ip_protection', '')
     color = request.args.get('color', '')
 
-    # Boolean фільтри (tinyint(1) в БД)
+    # Boolean фільтри 
     microsd_support = request.args.get('microsd_support', '')
     optical_stabilization = request.args.get('optical_stabilization', '')
     wireless_charge = request.args.get('wireless_charge', '')
@@ -233,6 +234,8 @@ def index():
             exclude_ids=None,
             recent_views=recent_views
         )
+        for rec in recommendations:
+            log_recommendation_event(session['user_id'], rec['id'], "shown", "catalog_page")
     else:
         recommendations = rec_engine.get_popular_products(limit=12)
     
@@ -260,7 +263,7 @@ def get_filter_options():
     
     filter_options = {}
     
-    # Поля для фільтрації (точно як в БД)
+    # Поля для фільтрації
     fields_to_check = [
         'brand', 'os', 'screen_type', 'refresh_rate', 'ram', 'rom',
         'video_recording', 'wifi_version', 'bluetooth_version', 'sim_type',
@@ -367,8 +370,6 @@ def add_product():
     return render_template('add_product.html')
 
 
-# Добавить эти маршруты в app.py после существующих маршрутов
-
 @app.route('/add-to-wishlist', methods=['POST'])
 def add_to_wishlist():
     if 'user_id' not in session:
@@ -377,41 +378,38 @@ def add_to_wishlist():
     data = request.get_json()
     product_id = int(data.get('product_id'))
 
-    
     if not product_id:
         return jsonify({'success': False, 'error': 'Не вказано ID товару'}), 400
     
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Получаем текущий вишлист пользователя
     cursor.execute("SELECT wishlist FROM users WHERE id = %s", (session['user_id'],))
     user_data = cursor.fetchone()
     
     if not user_data:
         conn.close()
         return jsonify({'success': False, 'error': 'Користувач не знайдений'}), 404
-    
-    # Парсим JSON вишлиста или создаем пустой список
+
     import json
     try:
         wishlist = json.loads(user_data['wishlist']) if user_data['wishlist'] else []
     except:
         wishlist = []
-    
-    # Проверяем, есть ли уже товар в вишлисте
+
     if product_id in wishlist:
         conn.close()
         return jsonify({'success': False, 'error': 'Товар вже в вишлисті'}), 400
     
-    # Добавляем товар в вишлист
     wishlist.append(product_id)
     
-    # Обновляем в БД
     cursor.execute("UPDATE users SET wishlist = %s WHERE id = %s", 
                   (json.dumps(wishlist), session['user_id']))
     conn.commit()
     conn.close()
+    
+    # Log the wishlist event
+    log_recommendation_event(session['user_id'], product_id, "wishlisted", "user_action")
     
     return jsonify({'success': True, 'message': 'Товар додано до вишлисту'})
 
@@ -431,32 +429,31 @@ def add_to_cart():
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Получаем текущую корзину пользователя
     cursor.execute("SELECT cart FROM users WHERE id = %s", (session['user_id'],))
     user_data = cursor.fetchone()
     
     if not user_data:
         conn.close()
         return jsonify({'success': False, 'error': 'Користувач не знайдений'}), 404
-    
-    # Парсим JSON корзины или создаем пустой словарь
+
     import json
     try:
         cart = json.loads(user_data['cart']) if user_data['cart'] else {}
     except:
         cart = {}
-    
-    # Добавляем товар в корзину (если уже есть - увеличиваем количество)
+
     if str(product_id) in cart:
         cart[str(product_id)] += quantity
     else:
         cart[str(product_id)] = quantity
     
-    # Обновляем в БД
     cursor.execute("UPDATE users SET cart = %s WHERE id = %s", 
                   (json.dumps(cart), session['user_id']))
     conn.commit()
     conn.close()
+    
+    # Log cart event
+    log_recommendation_event(session['user_id'], product_id, "added_to_cart", "user_action")
     
     return jsonify({'success': True, 'message': 'Товар додано до кошика'})
 
@@ -469,7 +466,6 @@ def wishlist():
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Отримати вішлист користувача
     cursor.execute("SELECT wishlist, cart FROM users WHERE id = %s", (session['user_id'],))
     user_data = cursor.fetchone()
 
@@ -482,28 +478,31 @@ def wishlist():
         cart_data = json.loads(user_data['cart']) if user_data['cart'] else {}
         cart_ids = list(map(int, cart_data.keys()))
 
-    # Якщо вішлист не порожній — отримати продукти
+    # отримати продукти
     products = []
     if wishlist_ids:
         format_strings = ','.join(['%s'] * len(wishlist_ids))
         cursor.execute(f"SELECT id, title, image_url, price FROM products WHERE id IN ({format_strings})", tuple(wishlist_ids))
         products = cursor.fetchall()
 
-    # --- Рекомендації ---
+    # Рекомендації
     from recommendation_engine import RecommendationEngine
     rec_engine = RecommendationEngine()
 
     recommendations = rec_engine.get_user_recommendations(
         session['user_id'],
         limit=12,
-        exclude_ids=wishlist_ids  # не показываем уже добавленные в вишлист
+        exclude_ids=wishlist_ids
     )
 
     conn.close()
 
     return render_template(
         "wishlist.html",
-        user={'username': session.get('username')},
+        user={
+            'username': session.get('username'),
+            'id': session.get('user_id')
+        },
         products=products,
         cart_ids=cart_ids,
         recommendations=recommendations)
@@ -574,7 +573,7 @@ def cart():
                 total_price += product['total_price']
                 products.append(product)
 
-    # 🔥 Рекомендации
+    # Рекомендации
     rec_engine = RecommendationEngine()
     recent_views = []
     cookie_val = request.cookies.get('recent_views')
@@ -596,7 +595,10 @@ def cart():
 
     conn.close()
     return render_template("cart.html", 
-                         user={'username': session.get('username')}, 
+                         user={
+                             'username': session.get('username'),
+                             'id': session.get('user_id')
+                         },
                          products=products,
                          total_price=total_price,
                          recommendations=recommendations)
@@ -627,7 +629,7 @@ def remove_from_cart():
         conn.close()
         return jsonify({'success': False, 'error': 'Товар не знайдено у кошику'}), 404
 
-    # Удаляем товар из корзины
+
     del cart[product_id]
     
     cursor.execute("UPDATE users SET cart = %s WHERE id = %s", (json.dumps(cart), session['user_id']))
@@ -662,7 +664,6 @@ def update_cart_quantity():
         conn.close()
         return jsonify({'success': False, 'error': 'Товар не знайдено у кошику'}), 404
 
-    # Обновляем количество товара
     cart[product_id] = new_quantity
     
     cursor.execute("UPDATE users SET cart = %s WHERE id = %s", (json.dumps(cart), session['user_id']))
@@ -691,13 +692,15 @@ def clear_cart():
 def product_detail(product_id):
     user = None
     if 'user_id' in session:
-        user = {'username': session.get('username')}
+        user = {
+            'username': session.get('username'),
+            'id': session.get('user_id')  # Add this line
+        }
         save_view_history(session['user_id'], product_id)
 
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Получаем данные о товаре
     cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
     product = cursor.fetchone()
 
@@ -705,7 +708,6 @@ def product_detail(product_id):
         conn.close()
         return "Товар не знайдено", 404
 
-    # Проверяем, есть ли товар в вишлисте и корзине пользователя
     in_wishlist = False
     in_cart = False
 
@@ -727,12 +729,11 @@ def product_detail(product_id):
                     cart_data = {}
                 in_cart = str(product_id) in cart_data
 
-    # --- Рекомендации для страницы товара ---
+    # Рекомендации
     from recommendation_engine import RecommendationEngine
     rec_engine = RecommendationEngine()
     import json
 
-    # Читаем cookie recent_views
     recent_views = []
     cookie_val = request.cookies.get('recent_views')
     if cookie_val:
@@ -745,16 +746,18 @@ def product_detail(product_id):
         recommendations = rec_engine.get_user_recommendations(
             session['user_id'],
             limit=12,
-            exclude_ids=[product_id],   # исключаем текущий товар
+            exclude_ids=[product_id],
             recent_views=recent_views
         )
+        for rec in recommendations:
+            log_recommendation_event(session['user_id'], rec['id'], "shown", "product_page")
     else:
         # если пользователь не залогинен — просто популярные
         recommendations = rec_engine.get_popular_products(limit=12, exclude_ids=[product_id])
 
     conn.close()
 
-    # --- cookie recent views (на стороне клиента) ---
+    # cookie
     recent = []
     cookie_val = request.cookies.get('recent_views')
     if cookie_val:
@@ -772,7 +775,7 @@ def product_detail(product_id):
                                              product=product,
                                              in_wishlist=in_wishlist,
                                              in_cart=in_cart,
-                                             recommendations=recommendations))   # <<< добавляем в шаблон
+                                             recommendations=recommendations))
     response.set_cookie('recent_views', json.dumps(recent), max_age=30*24*3600, path='/', httponly=False)
     return response
 
@@ -786,7 +789,7 @@ def checkout():
     cursor = conn.cursor(dictionary=True)
     
     try:
-        # Отримуємо корзину користувача
+        # Get user's cart
         cursor.execute("SELECT cart FROM users WHERE id = %s", (session['user_id'],))
         user_data = cursor.fetchone()
         
@@ -799,7 +802,7 @@ def checkout():
         if not cart_items:
             return jsonify({'success': False, 'error': 'Кошик порожній'}), 400
         
-        # Отримуємо інформацію про товари та їх ціни
+        # Get product information and prices
         product_ids = list(cart_items.keys())
         format_strings = ','.join(['%s'] * len(product_ids))
         cursor.execute(f"""
@@ -809,29 +812,32 @@ def checkout():
         """, tuple(map(int, product_ids)))
         products = cursor.fetchall()
         
-        # Створюємо словник цін
         prices = {str(p['id']): p['price'] for p in products}
         
-        # Додаємо записи в purchase_history
         purchase_date = datetime.datetime.now()
+        
+        # Process each item in cart
         for product_id, quantity in cart_items.items():
             if product_id in prices:
+                # Add to purchase history
                 cursor.execute("""
                     INSERT INTO purchase_history (user_id, product_id, quantity, price, purchase_date)
                     VALUES (%s, %s, %s, %s, %s)
-                """, (session['user_id'], int(product_id), quantity, prices[product_id], purchase_date))
+                    """, (session['user_id'], int(product_id), quantity, prices[product_id], purchase_date))
+                
+                # Log purchase event
+                log_recommendation_event(session['user_id'], int(product_id), "purchased", "checkout")
         
-        # Оновлюємо поле purchased в таблиці users
+        # Update user's purchased history
         cursor.execute("SELECT purchased FROM users WHERE id = %s", (session['user_id'],))
         user_purchased = cursor.fetchone()
         
-        # Парсимо існуючу історію покупок або створюємо нову
         try:
             purchased_history = json.loads(user_purchased['purchased']) if user_purchased['purchased'] else []
         except:
             purchased_history = []
         
-        # Додаємо нову покупку до історії
+        # Add new purchase to history
         new_purchase = {
             'date': purchase_date.isoformat(),
             'items': cart_items,
@@ -839,7 +845,7 @@ def checkout():
         }
         purchased_history.append(new_purchase)
         
-        # Оновлюємо purchased і очищаємо корзину
+        # Clear cart and update purchased history
         cursor.execute("""
             UPDATE users 
             SET purchased = %s, cart = '{}' 
@@ -851,10 +857,11 @@ def checkout():
         
     except Exception as e:
         conn.rollback()
-        print(f"Помилка при оформленні замовлення: {e}")
+        print(f"Error during checkout: {e}")
         return jsonify({'success': False, 'error': 'Помилка при оформленні замовлення'}), 500
     finally:
         conn.close()
+
 
 @app.route('/purchase-history')
 def purchase_history():
@@ -864,7 +871,6 @@ def purchase_history():
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Отримуємо історію покупок з purchase_history
     cursor.execute("""
         SELECT ph.*, p.title, p.image_url 
         FROM purchase_history ph
@@ -961,7 +967,6 @@ def recommendations():
     
     rec_engine = RecommendationEngine()
     
-    # ✅ читаем cookie 'recent_views' (список последних просмотренных id)
     recent_views = []
     cookie_val = request.cookies.get('recent_views')
     if cookie_val:
@@ -971,13 +976,18 @@ def recommendations():
             recent_views = []
 
     if 'user_id' in session:
-        user = {'username': session.get('username')}
+        user = {
+            'username': session.get('username'),
+            'id': session.get('user_id')
+        }
         recommendations = rec_engine.get_user_recommendations(
             session['user_id'], 
             limit=20,
             exclude_ids=None,
             recent_views=recent_views
         )
+        for rec in recommendations:
+            log_recommendation_event(session['user_id'], rec['id'], "shown", "recommendations_page")
         
         user_stats = get_user_activity_stats(session['user_id'])
     else:
@@ -989,6 +999,44 @@ def recommendations():
                          user_stats=user_stats)
 
 
+@app.route('/track-recommendation-event', methods=['POST'])
+def track_recommendation_event():
+    """Відстеження рекомендаціїї"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+    
+    product_id = data.get('product_id')
+    event_type = data.get('event_type')
+    source = data.get('source', 'unknown')
+    
+    event_type_mapping = {
+        'added_to_cart': 'cart_add',
+        'wishlisted': 'wishlist',
+        'removed_from_wishlist': 'wishlist_remove'
+    }
+
+    event_type = event_type_mapping.get(event_type, event_type)
+    
+    # Validate required parameters
+    if not product_id or not event_type:
+        return jsonify({'success': False, 'error': 'Missing product_id or event_type'}), 400
+    
+    # Validate event_type
+    valid_events = ['shown', 'clicked', 'wishlisted', 'added_to_cart', 'purchased', 'removed_from_wishlist']
+    if event_type not in valid_events:
+        return jsonify({'success': False, 'error': f'Invalid event_type. Must be one of: {valid_events}'}), 400
+    
+    try:
+        # Log the event
+        log_recommendation_event(session['user_id'], product_id, event_type, source)
+        return jsonify({'success': True, 'message': 'Event logged successfully'})
+    except Exception as e:
+        print(f"Error logging recommendation event: {e}")
+        return jsonify({'success': False, 'error': 'Failed to log event'}), 500
 
 
 
@@ -1037,6 +1085,280 @@ def api_similar_products(product_id):
         'success': True,
         'products': similar_products
     })
+
+
+@app.route('/admin/stats')
+def admin_stats():
+    # if 'user_id' not in session or session.get('username') != 'admin':
+    #     return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT COUNT(*) as total_users FROM users")
+    total_users = cursor.fetchone()['total_users']
+
+    cursor.execute("SELECT COUNT(*) as total_products FROM products")
+    total_products = cursor.fetchone()['total_products']
+
+    cursor.execute("SELECT COUNT(*) as total_orders FROM purchase_history")
+    total_orders = cursor.fetchone()['total_orders']
+
+    cursor.execute("SELECT SUM(price*quantity) as total_revenue FROM purchase_history")
+    total_revenue = cursor.fetchone()['total_revenue'] or 0
+
+    # Топ бренди
+    cursor.execute("SELECT brand, COUNT(*) as cnt FROM products GROUP BY brand ORDER BY cnt DESC LIMIT 5")
+    top_brands = cursor.fetchall()
+
+    # Топ товари
+    cursor.execute("""
+        SELECT p.title, SUM(ph.quantity) as sold 
+        FROM purchase_history ph
+        JOIN products p ON p.id = ph.product_id
+        GROUP BY ph.product_id ORDER BY sold DESC LIMIT 5
+    """)
+    top_products = cursor.fetchall()
+
+    # Пошуки
+    cursor.execute("SELECT search_history FROM users WHERE search_history IS NOT NULL")
+    all_searches = []
+    for row in cursor.fetchall():
+        try:
+            import json
+            history = json.loads(row['search_history'])
+            all_searches.extend([h['query'] for h in history])
+        except:
+            pass
+    from collections import Counter
+    top_searches = Counter(all_searches).most_common(5)
+
+    # ВСІ фільтри
+    cursor.execute("SELECT filter_history FROM users WHERE filter_history IS NOT NULL")
+    all_filters = []
+    for row in cursor.fetchall():
+        try:
+            import json
+            history = json.loads(row['filter_history'])
+            for h in history:
+                for k, v in h.get("filters", {}).items():
+                    all_filters.append(f"{k}:{v}")
+        except:
+            pass
+    filter_counts = Counter(all_filters)  # без .most_common(), беремо все
+
+    # Продані смартфони (усі)
+    cursor.execute("""
+        SELECT p.title, SUM(ph.quantity) as sold
+        FROM purchase_history ph
+        JOIN products p ON p.id = ph.product_id
+        GROUP BY ph.product_id ORDER BY sold DESC
+    """)
+    sold_products = cursor.fetchall()
+
+    # Статистика рекомендацій
+    cursor.execute("""
+    SELECT 
+        -- Унікальні користувачі, які бачили рекомендації
+        COUNT(DISTINCT CASE WHEN event_type = 'shown' THEN user_id END) as users_with_recs,
+        -- Унікальні користувачі, які взаємодіяли з рекомендаціями
+        COUNT(DISTINCT CASE WHEN event_type IN ('clicked', 'purchased', 'wishlisted', 'added_to_cart') 
+              THEN user_id END) as engaged_users,
+        -- Загальна кількість взаємодій
+        COUNT(CASE WHEN event_type = 'clicked' THEN 1 END) as total_clicks,
+        COUNT(CASE WHEN event_type = 'purchased' THEN 1 END) as total_purchases,
+        COUNT(CASE WHEN event_type = 'wishlisted' THEN 1 END) as total_wishlisted,
+        COUNT(CASE WHEN event_type = 'added_to_cart' THEN 1 END) as total_cart_adds
+        FROM recommendation_logs
+        """)
+    
+    rec_result = cursor.fetchone()
+    
+    # User engagement rate (скільки користувачів взаємодіяли з рекомендаціями)
+    user_engagement_rate = round((rec_result['engaged_users'] / rec_result['users_with_recs'] * 100), 2) if rec_result['users_with_recs'] > 0 else 0
+    
+    # Purchase conversion від кліків
+    purchase_conversion = round((rec_result['total_purchases'] / rec_result['total_clicks'] * 100), 2) if rec_result['total_clicks'] > 0 else 0
+    
+    rec_stats = {
+        'users_with_recs': rec_result['users_with_recs'],
+        'engaged_users': rec_result['engaged_users'],
+        'user_engagement_rate': user_engagement_rate,
+        'clicked': rec_result['total_clicks'],
+        'purchased': rec_result['total_purchases'],
+        'wishlisted': rec_result['total_wishlisted'],
+        'cart_adds': rec_result['total_cart_adds'],
+        'purchase_conversion': purchase_conversion
+    }
+
+    # Замовлення по датах
+    cursor.execute("""
+        SELECT DATE(purchase_date) as date, 
+               COUNT(*) as orders, 
+               SUM(price * quantity) as revenue 
+        FROM purchase_history 
+        GROUP BY DATE(purchase_date) 
+        ORDER BY date DESC LIMIT 30
+    """)
+    orders_by_date = cursor.fetchall()
+
+    # Рекомендації по датах
+    cursor.execute("""
+        SELECT DATE(created_at) as date,
+               SUM(CASE WHEN event_type = 'shown' THEN 1 ELSE 0 END) as shown,
+               SUM(CASE WHEN event_type = 'clicked' THEN 1 ELSE 0 END) as clicked,
+               SUM(CASE WHEN event_type = 'purchased' THEN 1 ELSE 0 END) as purchased
+        FROM recommendation_logs
+        GROUP BY date
+        ORDER BY date DESC LIMIT 30
+    """)
+    rec_by_date = cursor.fetchall()
+
+    conn.close()
+
+    return render_template("admin_stats.html",
+                           user={'username': session.get('username')},
+                           total_users=total_users,
+                           total_products=total_products,
+                           total_orders=total_orders,
+                           total_revenue=total_revenue,
+                           top_brands=top_brands,
+                           top_products=top_products,
+                           top_searches=top_searches,
+                           filter_counts=filter_counts,
+                           sold_products=sold_products,
+                           orders_by_date=orders_by_date,
+                           rec_stats=rec_stats,
+                           rec_by_date=rec_by_date)
+
+
+
+@app.route('/track-recommendation-click', methods=['POST'])
+def track_recommendation_click():
+    if 'user_id' not in session:
+        return jsonify({'success': False}), 401
+    
+    data = request.get_json()
+    product_id = data.get('product_id')
+    source = data.get('source', None)
+
+    if not product_id:
+        return jsonify({'success': False, 'error': 'Немає product_id'}), 400
+
+    log_recommendation_event(session['user_id'], int(product_id), "clicked", source)
+    return jsonify({'success': True})
+
+@app.route('/log_recommendation_event', methods=['POST'])
+def log_recommendation_event_route():
+    """Маршрут для логування подій рекомендаційної системи з frontend"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Користувач не авторизований'}), 401
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Відсутні дані'}), 400
+        
+        user_id = data.get('user_id')
+        product_id = data.get('product_id')
+        event_type = data.get('event_type')
+        source = data.get('source', 'unknown')
+        
+        # Перевірка обов'язкових полів
+        if not all([user_id, product_id, event_type]):
+            return jsonify({'success': False, 'error': 'Відсутні обов\'язкові поля'}), 400
+        
+        # Перевірка, що user_id збігається з поточною сесією
+        if int(user_id) != session['user_id']:
+            return jsonify({'success': False, 'error': 'Невірний користувач'}), 403
+        
+        # Перевірка валідності event_type
+        valid_events = ['shown', 'clicked', 'wishlisted', 'added_to_cart', 'purchased', 'removed_from_wishlist']
+        if event_type not in valid_events:
+            return jsonify({'success': False, 'error': f'Невалідний тип події. Дозволені: {valid_events}'}), 400
+        
+        # Перевірка існування товару
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM products WHERE id = %s", (product_id,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Товар не знайдено'}), 404
+        
+        # Логування події
+        success = log_recommendation_event(user_id, product_id, event_type, source)
+        conn.close()
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Подія успішно залогована'})
+        else:
+            return jsonify({'success': False, 'error': 'Помилка при логуванні'}), 500
+            
+    except Exception as e:
+        print(f"Помилка в log_recommendation_event_route: {e}")
+        return jsonify({'success': False, 'error': 'Внутрішня помилка сервера'}), 500
+    
+
+def log_recommendation_event(user_id, product_id, event_type, source=None):
+    """Розширена функція реєстрації подій рекомендацій (update якщо вже існує shown)"""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Перевірка наявності товару
+        cursor.execute("SELECT id FROM products WHERE id = %s", (product_id,))
+        if not cursor.fetchone():
+            print(f"⚠️ Warning: Product {product_id} not found")
+            conn.close()
+            return False
+
+        if event_type == "shown":
+            # Шукаємо чи вже є запис
+            cursor.execute("""
+                SELECT id FROM recommendation_logs 
+                WHERE user_id = %s AND product_id = %s AND event_type = 'shown'
+                ORDER BY created_at DESC LIMIT 1
+            """, (user_id, product_id))
+            existing = cursor.fetchone()
+
+            if existing:
+                # Якщо є — оновлюємо час і source
+                cursor.execute("""
+                    UPDATE recommendation_logs
+                    SET created_at = NOW(), source = %s
+                    WHERE id = %s
+                """, (source, existing[0]))
+            else:
+                # Якщо немає — створюємо новий
+                cursor.execute("""
+                    INSERT INTO recommendation_logs (user_id, product_id, event_type, source, created_at)
+                    VALUES (%s, %s, %s, %s, NOW())
+                """, (user_id, product_id, event_type, source))
+        else:
+            # Для інших подій завжди новий запис
+            cursor.execute("""
+                INSERT INTO recommendation_logs (user_id, product_id, event_type, source, created_at)
+                VALUES (%s, %s, %s, %s, NOW())
+            """, (user_id, product_id, event_type, source))
+
+        conn.commit()
+        conn.close()
+
+        print(f"✅ Event logged: user={user_id}, product={product_id}, event={event_type}, source={source}")
+        return True
+
+    except Exception as e:
+        print(f"❌ Error logging recommendation event: {e}")
+        if 'conn' in locals():
+            try:
+                conn.rollback()
+                conn.close()
+            except:
+                pass
+        return False
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

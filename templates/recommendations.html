@@ -136,20 +136,67 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Инициализация обработчиков для страницы рекомендаций');
+    console.log('🚀 Ініціалізація обробників для сторінки рекомендацій');
+    
+    // Отримуємо дані користувача з головного скрипта
+    const serverDataElement = document.getElementById('server-data');
+    let loggedInUser = null;
+    
+    if (serverDataElement) {
+        const serverData = JSON.parse(serverDataElement.textContent);
+        loggedInUser = serverData.user;
+    }
+    
+    // Функція логування подій рекомендацій
+    async function logRecommendationEvent(productId, eventType, source = "recommendations_page") {
+        if (!loggedInUser || !loggedInUser.id) {
+            console.warn("⚠️ Користувач не авторизований — логування пропущено");
+            return;
+        }
+        
+        try {
+            await fetch("/log_recommendation_event", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    user_id: loggedInUser.id,
+                    product_id: productId,
+                    event_type: eventType,
+                    source: source
+                })
+            });
+            console.log(`✅ Залоговано: ${eventType} для товару ${productId} від джерела ${source}`);
+        } catch (err) {
+            console.error("❌ Помилка логування:", err);
+        }
+    }
     
     document.addEventListener('click', async function(e) {
-        // Обработчик для кнопки вишлиста
+        const productLink = e.target.closest("a[href*='/product/']");
+        if (productLink) {
+            const productId = parseInt(productLink.getAttribute("href").split("/").pop());
+            if (productId && loggedInUser) {
+                await logRecommendationEvent(productId, "clicked", "recommendations_page");
+            }
+        }
+        
         if (e.target.classList.contains('wishlist-btn') || e.target.closest('.wishlist-btn')) {
             e.preventDefault();
             const btn = e.target.classList.contains('wishlist-btn') ? e.target : e.target.closest('.wishlist-btn');
-            const productId = btn.getAttribute('data-product-id');
+            const productId = parseInt(btn.getAttribute('data-product-id'));
+            
+            if (!loggedInUser) {
+                alert('❌ Для додавання товарів до вишлисту необхідно авторизуватися!');
+                return;
+            }
             
             try {
                 const response = await fetch('/add-to-wishlist', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ product_id: parseInt(productId) })
+                    body: JSON.stringify({ product_id: productId })
                 });
                 
                 const data = await response.json();
@@ -158,6 +205,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert('✅ ' + data.message);
                     btn.style.backgroundColor = '#dc3545';
                     btn.style.color = 'white';
+                    
+                    // Логуємо додавання до вішліста
+                    await logRecommendationEvent(productId, "wishlisted", "recommendations_page");
                 } else {
                     if (response.status === 401) {
                         alert('❌ Для додавання товарів до вишлисту необхідно авторизуватися!');
@@ -166,22 +216,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             } catch (error) {
-                console.error('Ошибка при добавлении в вишлист:', error);
+                console.error('Помилка при додаванні до вишлисту:', error);
                 alert('❌ Помилка підключення до сервера');
             }
         }
         
-        // Обработчик для кнопки корзины
+        //  Обробник для кнопки кошика
         if (e.target.classList.contains('cart-btn') || e.target.closest('.cart-btn')) {
             e.preventDefault();
             const btn = e.target.classList.contains('cart-btn') ? e.target : e.target.closest('.cart-btn');
-            const productId = btn.getAttribute('data-product-id');
+            const productId = parseInt(btn.getAttribute('data-product-id'));
+            
+            if (!loggedInUser) {
+                alert('❌ Для додавання товарів до кошика необхідно авторизуватися!');
+                return;
+            }
             
             try {
                 const response = await fetch('/add-to-cart', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ product_id: parseInt(productId), quantity: 1 })
+                    body: JSON.stringify({ product_id: productId, quantity: 1 })
                 });
                 
                 const data = await response.json();
@@ -190,6 +245,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert('✅ ' + data.message);
                     btn.style.backgroundColor = '#0d6efd';
                     btn.style.color = 'white';
+                    
+                    // Логуємо додавання до кошика
+                    await logRecommendationEvent(productId, "added_to_cart", "recommendations_page");
                 } else {
                     if (response.status === 401) {
                         alert('❌ Для додавання товарів до кошика необхідно авторизуватися!');
@@ -198,12 +256,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             } catch (error) {
-                console.error('Ошибка при добавлении в корзину:', error);
+                console.error('Помилка при додаванні до кошика:', error);
                 alert('❌ Помилка підключення до сервера');
             }
         }
     });
+    
+    console.log('✅ Обробники подій для рекомендацій ініціалізовано');
 });
 </script>
 {% endblock %}
-

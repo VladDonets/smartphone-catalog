@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>📊 Адмін-панель: Статистика</h2>
+
+  <!-- Карточки (4 у рядку як є) -->
+  <div class="row mt-3">
+    <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+      <h5 class="card-title">Користувачі</h5><p class="fs-4">{{ total_users }}</p>
+    </div></div></div>
+    <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+      <h5 class="card-title">Товари</h5><p class="fs-4">{{ total_products }}</p>
+    </div></div></div>
+    <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+      <h5 class="card-title">Замовлення</h5><p class="fs-4">{{ total_orders }}</p>
+    </div></div></div>
+    <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+      <h5 class="card-title">Дохід</h5><p class="fs-4">{{ total_revenue }} ₴</p>
+    </div></div></div>
+  </div>
+
+  <!-- Усі секції по 2 в рядку -->
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <h4>🔥 Топ бренди</h4>
+      <ul class="list-group">
+        {% for b in top_brands %}
+          <li class="list-group-item d-flex justify-content-between">
+            {{ b.brand }} <span class="badge bg-primary">{{ b.cnt }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="col-md-6">
+      <h4>📱 Топ товари</h4>
+      <ul class="list-group">
+        {% for p in top_products %}
+          <li class="list-group-item d-flex justify-content-between">
+            {{ p.title }} <span class="badge bg-success">{{ p.sold }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <h4>🔍 Топ пошуки</h4>
+      <ul class="list-group">
+        {% for s, cnt in top_searches %}
+          <li class="list-group-item d-flex justify-content-between">
+            {{ s }} <span class="badge bg-info">{{ cnt }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="col-md-6">
+      <h4>⚙️ Використані фільтри</h4>
+      <canvas id="filtersChart" height="300"></canvas>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <h4>📦 Продані смартфони</h4>
+      <canvas id="soldChart" height="300"></canvas>
+    </div>
+    <div class="col-md-6">
+      <h4>📈 Статистика рекомендацій</h4>
+      <canvas id="recStatsChart" height="300"></canvas>
+      <p class="mt-2 text-muted">
+        Рівень залученості: <b>{{ rec_stats.user_engagement_rate }}%</b><br>
+        Конверсія покупок: <b>{{ rec_stats.purchase_conversion }}%</b>
+      </p>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <h4>📅 Замовлення по датах</h4>
+      <canvas id="ordersChart" height="300"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Фільтри
+  new Chart(document.getElementById('filtersChart'), {
+    type: 'bar',
+    data: {
+      labels: [{% for f,cnt in filter_counts.items() %}'{{ f }}',{% endfor %}],
+      datasets: [{
+        label: 'Використання',
+        data: [{% for f,cnt in filter_counts.items() %}{{ cnt }},{% endfor %}],
+        backgroundColor: 'rgba(255, 193, 7, 0.7)',
+        borderColor: 'rgba(255, 193, 7, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: { indexAxis: 'y', responsive: true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+  });
+
+  // Продані смартфони
+  new Chart(document.getElementById('soldChart'), {
+    type: 'bar',
+    data: {
+      labels: [{% for p in sold_products %}'{{ p.title }}',{% endfor %}],
+      datasets: [{
+        label: 'Продано шт.',
+        data: [{% for p in sold_products %}{{ p.sold }},{% endfor %}],
+        backgroundColor: 'rgba(40, 167, 69, 0.7)',
+        borderColor: 'rgba(40, 167, 69, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: { indexAxis: 'y', responsive: true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+  });
+
+  // 📈 Статистика рекомендацій
+  new Chart(document.getElementById('recStatsChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Кліки','Покупки','У бажаному','У кошик'],
+      datasets: [{
+        label: 'Взаємодії',
+        data: [{{ rec_stats.clicked }}, {{ rec_stats.purchased }}, {{ rec_stats.wishlisted }}, {{ rec_stats.cart_adds }}],
+        backgroundColor: ['#0d6efd','#198754','#dc3545','#ffc107']
+      }]
+    },
+    options: { 
+      responsive: true, 
+      plugins:{legend:{display:false}},
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Кількість взаємодій'
+          }
+        }
+      }
+    }
+  });
+
+  // 📅 Замовлення по датах
+  new Chart(document.getElementById('ordersChart'), {
+    type: 'line',
+    data: {
+      labels: [{% for o in orders_by_date %}'{{ o.date }}',{% endfor %}],
+      datasets: [
+        {
+          label: 'Замовлення',
+          data: [{% for o in orders_by_date %}{{ o.orders }},{% endfor %}],
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13,110,253,0.3)',
+          tension: 0.3
+        },
+        {
+          label: 'Дохід ₴',
+          data: [{% for o in orders_by_date %}{{ o.revenue|default(0) }},{% endfor %}],
+          borderColor: '#198754',
+          backgroundColor: 'rgba(25,135,84,0.3)',
+          tension: 0.3,
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      stacked: false,
+      // maintainAspectRatio: false, // дозволяє кастомні розміри
+      aspectRatio: 4, // більше значення = нижчий графік
+      scales: {
+        y: { beginAtZero: true, title:{display:true,text:'Замовлення'} },
+        y1: { beginAtZero: true, position:'right', title:{display:true,text:'Дохід ₴'}, grid:{drawOnChartArea:false} }
+      }
+    }
+  });
+</script>
+{% endblock %}
